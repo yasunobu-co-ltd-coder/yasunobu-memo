@@ -74,6 +74,7 @@ export default function Page() {
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [calFilter, setCalFilter] = useState<'全件' | '自分担当'>('自分担当');
 
   // Voice Input
   const [isRecording, setIsRecording] = useState(false);
@@ -512,7 +513,7 @@ export default function Page() {
           <div className="brand">matip <span style={{ fontSize: '10px', opacity: 0.7 }}>v1.1</span></div>
           <button onClick={openNotif} className="notif-bell">
             🔔
-            {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+            {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
           </button>
           <button onClick={() => { setShowCalendar(true); setSelectedDate(null); }} className="notif-bell">
             📅
@@ -610,19 +611,6 @@ export default function Page() {
                   className={`glass-panel`}
                   style={{
                     padding: '8px 16px', borderRadius: '99px', cursor: 'pointer',
-                    background: assignmentType === '任せる' ? '#e0f2fe' : 'transparent',
-                    color: assignmentType === '任せる' ? '#0284c7' : '#64748b',
-                    borderColor: assignmentType === '任せる' ? '#0284c7' : '#e2e8f0'
-                  }}
-                  onClick={() => setAssignmentType('任せる')}
-                >
-                  誰かに任せる
-                </button>
-                <button
-                  type="button"
-                  className={`glass-panel`}
-                  style={{
-                    padding: '8px 16px', borderRadius: '99px', cursor: 'pointer',
                     background: assignmentType === '自分で' ? '#e0f2fe' : 'transparent',
                     color: assignmentType === '自分で' ? '#0284c7' : '#64748b',
                     borderColor: assignmentType === '自分で' ? '#0284c7' : '#e2e8f0'
@@ -630,6 +618,19 @@ export default function Page() {
                   onClick={() => setAssignmentType('自分で')}
                 >
                   自分でやる
+                </button>
+                <button
+                  type="button"
+                  className={`glass-panel`}
+                  style={{
+                    padding: '8px 16px', borderRadius: '99px', cursor: 'pointer',
+                    background: assignmentType === '任せる' ? '#e0f2fe' : 'transparent',
+                    color: assignmentType === '任せる' ? '#0284c7' : '#64748b',
+                    borderColor: assignmentType === '任せる' ? '#0284c7' : '#e2e8f0'
+                  }}
+                  onClick={() => setAssignmentType('任せる')}
+                >
+                  誰かに任せる
                 </button>
               </div>
 
@@ -856,9 +857,10 @@ export default function Page() {
         for (let i = 0; i < firstDow; i++) cells.push(null);
         for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-        // Build a map of due_date -> deals (open only)
+        // Build a map of due_date -> deals (open only, filtered)
+        const calDeals = deals.filter(d => d.status === 'open' && (calFilter === '全件' || d.assignee === me));
         const dueDateMap: Record<string, Deal[]> = {};
-        deals.filter(d => d.status === 'open').forEach(d => {
+        calDeals.forEach(d => {
           if (!d.due_date) return;
           if (!dueDateMap[d.due_date]) dueDateMap[d.due_date] = [];
           dueDateMap[d.due_date].push(d);
@@ -873,9 +875,27 @@ export default function Page() {
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px' }}>
             <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', maxHeight: '85vh', overflowY: 'auto', marginTop: '20px' }}>
               {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h2 style={{ fontSize: '18px', fontWeight: '700' }}>カレンダー</h2>
                 <button onClick={() => setShowCalendar(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
+              </div>
+
+              {/* Calendar Filter */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                {(['全件', '自分担当'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => { setCalFilter(f); setSelectedDate(null); }}
+                    style={{
+                      background: calFilter === f ? '#2563eb' : '#fff',
+                      color: calFilter === f ? '#fff' : '#64748b',
+                      border: calFilter === f ? 'none' : '1px solid #e2e8f0',
+                      padding: '5px 12px', borderRadius: '99px', fontSize: '12px', fontWeight: '600', cursor: 'pointer'
+                    }}
+                  >
+                    {f}
+                  </button>
+                ))}
               </div>
 
               {/* Month Navigation */}
