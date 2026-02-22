@@ -53,7 +53,7 @@ export default function Page() {
   const [importance, setImportance] = useState<Tri>('中');
   const [profit, setProfit] = useState<Tri>('中');
   const [urgency, setUrgency] = useState<Tri>('中');
-  const [assignmentType, setAssignmentType] = useState<AssignmentType>('任せる');
+  const [assignmentType, setAssignmentType] = useState<AssignmentType>('自分で');
   const [assignee, setAssignee] = useState<string>('');
 
   // Edit mode
@@ -881,16 +881,17 @@ export default function Page() {
               </div>
 
               {/* Calendar Filter */}
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                 {(['全件', '自分担当'] as const).map(f => (
                   <button
                     key={f}
                     onClick={() => { setCalFilter(f); setSelectedDate(null); }}
                     style={{
+                      flex: 1,
                       background: calFilter === f ? '#2563eb' : '#fff',
                       color: calFilter === f ? '#fff' : '#64748b',
-                      border: calFilter === f ? 'none' : '1px solid #e2e8f0',
-                      padding: '5px 12px', borderRadius: '99px', fontSize: '12px', fontWeight: '600', cursor: 'pointer'
+                      border: calFilter === f ? '2px solid #2563eb' : '2px solid #e2e8f0',
+                      padding: '10px 0', borderRadius: '12px', fontSize: '15px', fontWeight: '700', cursor: 'pointer'
                     }}
                   >
                     {f}
