@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 export async function getLastChecked(userName: string): Promise<string | null> {
   try {
     const { data, error } = await supabase
-      .from('matip-memo-unread')
+      .from('yasunobu-memo-unread')
       .select('last_checked_at')
       .eq('user_name', userName)
       .single();
@@ -21,7 +21,7 @@ export async function getLastChecked(userName: string): Promise<string | null> {
 export async function updateLastChecked(userName: string): Promise<void> {
   try {
     await supabase
-      .from('matip-memo-unread')
+      .from('yasunobu-memo-unread')
       .upsert(
         { user_name: userName, last_checked_at: new Date().toISOString() },
         { onConflict: 'user_name' }
