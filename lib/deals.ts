@@ -25,7 +25,7 @@ export async function createDeal(deal: Omit<Deal, 'id' | 'created_at'>): Promise
   try {
     console.log('Creating deal:', deal);
     const { data, error } = await supabase
-      .from('matip-memo')
+      .from('yasunobu-memo')
       .insert([deal])
       .select()
       .single();
@@ -49,7 +49,7 @@ export async function getDeals(): Promise<Deal[]> {
   try {
     console.log('Fetching deals...');
     const { data, error } = await supabase
-      .from('matip-memo')
+      .from('yasunobu-memo')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -73,7 +73,7 @@ export async function getDeals(): Promise<Deal[]> {
 export async function updateDeal(id: string, updates: Partial<Deal>): Promise<Deal | null> {
   try {
     const { data, error } = await supabase
-      .from('matip-memo')
+      .from('yasunobu-memo')
       .update(updates)
       .eq('id', id)
       .select()
@@ -94,7 +94,7 @@ export async function updateDeal(id: string, updates: Partial<Deal>): Promise<De
 export async function deleteDeal(id: string): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('matip-memo')
+      .from('yasunobu-memo')
       .delete()
       .eq('id', id);
 

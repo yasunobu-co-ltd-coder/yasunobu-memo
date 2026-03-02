@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matip-v1';
+const CACHE_NAME = 'yasunobu-v1';
 
 const urlsToCache = [
     '/',

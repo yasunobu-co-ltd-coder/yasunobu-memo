@@ -6,7 +6,7 @@ export default function Header({ userName }: { userName: string }) {
   const router = useRouter();
 
   const logout = () => {
-    localStorage.removeItem("matip_user"); // ←キー名はあなたの実装に合わせて
+    localStorage.removeItem("yasunobu_user"); // ←キー名はあなたの実装に合わせて
     router.push("/login");
   };
 
