@@ -8,7 +8,7 @@ import { getLastChecked, updateLastChecked } from '../lib/unread';
 const TRI_SCORE: Record<Tri, number> = { 高: 3, 中: 2, 低: 1 };
 
 // PIN認証コード
-const VALID_PIN = '8004';
+const VALID_PIN = '0727';
 
 function todayYmd() {
   const d = new Date();
