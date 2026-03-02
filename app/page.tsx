@@ -34,9 +34,15 @@ export default function Page() {
   const [me, setMe] = useState<string>('');
   const [users, setUsers] = useState<User[]>([]);
   const [deleteMode, setDeleteMode] = useState(false);
-  const [sortMode, setSortMode] = useState(false);
   const [newUserName, setNewUserName] = useState('');
+
+  // Drag & Drop
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragStartYRef = useRef(0);
+  const dragNodeRef = useRef<HTMLDivElement | null>(null);
 
   // Data
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -146,7 +152,7 @@ export default function Page() {
       alert('このユーザーは既に存在します');
       return;
     }
-    const created = await addUser(trimmed);
+    const created = await addUser(trimmed, users.length);
     if (created) {
       setUsers([...users, created]);
       setNewUserName('');
@@ -192,29 +198,53 @@ export default function Page() {
     setDeleteMode(true);
   };
 
-  // Long press for sort mode
-  const handleLongPressStart = () => {
+  // Drag & Drop handlers
+  const handleDragStart = (index: number, clientY: number) => {
+    if (deleteMode) return;
+    dragStartYRef.current = clientY;
     longPressTimerRef.current = setTimeout(() => {
-      setSortMode(true);
-      setDeleteMode(false);
-    }, 600);
+      setDragIndex(index);
+      setDragOverIndex(index);
+      setIsDragging(true);
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 250);
   };
 
-  const handleLongPressEnd = () => {
+  const handleDragMove = (clientY: number) => {
+    if (!isDragging || dragIndex === null) {
+      // Cancel long press if moved too much before drag starts
+      if (longPressTimerRef.current && Math.abs(clientY - dragStartYRef.current) > 10) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      return;
+    }
+    // Determine which card we're over
+    const cards = document.querySelectorAll('[data-user-index]');
+    cards.forEach(card => {
+      const rect = card.getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        const idx = parseInt(card.getAttribute('data-user-index') || '0');
+        setDragOverIndex(idx);
+      }
+    });
+  };
+
+  const handleDragEnd = async () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-  };
-
-  // Move user up/down
-  const moveUser = async (index: number, direction: -1 | 1) => {
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= users.length) return;
-    const newUsers = [...users];
-    [newUsers[index], newUsers[targetIndex]] = [newUsers[targetIndex], newUsers[index]];
-    setUsers(newUsers);
-    await Promise.all(newUsers.map((u, i) => updateUserOrder(u.id, i)));
+    if (isDragging && dragIndex !== null && dragOverIndex !== null && dragIndex !== dragOverIndex) {
+      const newUsers = [...users];
+      const [moved] = newUsers.splice(dragIndex, 1);
+      newUsers.splice(dragOverIndex, 0, moved);
+      setUsers(newUsers);
+      await Promise.all(newUsers.map((u, i) => updateUserOrder(u.id, i)));
+    }
+    setDragIndex(null);
+    setDragOverIndex(null);
+    setIsDragging(false);
   };
 
   // Submit new deal
@@ -469,66 +499,67 @@ export default function Page() {
       <div className="login-screen">
         <div className="login-card">
           <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>matip</h1>
-          <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '32px' }}>
-            {sortMode ? '▲▼で並び替え' : '担当者を選択して開始'}
+          <p style={{ textAlign: 'center', color: '#64748b', marginBottom: isDragging ? '16px' : '32px' }}>
+            {isDragging ? 'ドラッグして並び替え' : '担当者を選択して開始'}
           </p>
 
-          {sortMode ? (
-            /* Sort Mode: vertical list with ▲▼ */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-              {users.map((u, i) => (
-                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <button
-                      onClick={() => moveUser(i, -1)}
-                      disabled={i === 0}
-                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1, padding: '0 4px', lineHeight: 1 }}
-                    >▲</button>
-                    <button
-                      onClick={() => moveUser(i, 1)}
-                      disabled={i === users.length - 1}
-                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: i === users.length - 1 ? 'default' : 'pointer', opacity: i === users.length - 1 ? 0.3 : 1, padding: '0 4px', lineHeight: 1 }}
-                    >▼</button>
-                  </div>
-                  <div className="glass-panel" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', fontWeight: 'bold', color: '#334155', textAlign: 'center' }}>
-                    {u.name}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            /* Normal Mode: grid */
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-              {users.map(u => (
-                <div key={u.id} style={{ position: 'relative' }}>
-                  <button
-                    className="glass-panel"
-                    style={{ width: '100%', padding: '16px', borderRadius: '12px', border: deleteMode ? '2px solid #ef4444' : 'none', cursor: 'pointer', fontWeight: 'bold', color: '#334155' }}
-                    onClick={() => deleteMode ? removeUser(u) : handleLogin(u.name)}
-                    onTouchStart={!deleteMode ? handleLongPressStart : undefined}
-                    onTouchEnd={!deleteMode ? handleLongPressEnd : undefined}
-                    onTouchCancel={!deleteMode ? handleLongPressEnd : undefined}
-                    onMouseDown={!deleteMode ? handleLongPressStart : undefined}
-                    onMouseUp={!deleteMode ? handleLongPressEnd : undefined}
-                    onMouseLeave={!deleteMode ? handleLongPressEnd : undefined}
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}
+            onTouchMove={e => handleDragMove(e.touches[0].clientY)}
+            onTouchEnd={handleDragEnd}
+            onMouseMove={e => handleDragMove(e.clientY)}
+            onMouseUp={handleDragEnd}
+          >
+            {users.map((u, i) => (
+              <div
+                key={u.id}
+                data-user-index={i}
+                style={{
+                  position: 'relative',
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  opacity: dragIndex === i ? 0.5 : 1,
+                  transform: dragOverIndex !== null && dragIndex !== null && dragIndex !== i
+                    ? (i > dragIndex && i <= dragOverIndex ? 'translateY(-8px)'
+                      : i < dragIndex && i >= dragOverIndex ? 'translateY(8px)' : 'none')
+                    : 'none',
+                  transition: isDragging ? 'transform 0.15s ease' : 'none',
+                }}
+              >
+                {/* Grip Icon */}
+                {!deleteMode && (
+                  <span
+                    style={{ fontSize: '20px', color: '#94a3b8', cursor: 'grab', userSelect: 'none', touchAction: 'none', padding: '8px 2px' }}
+                    onTouchStart={e => { e.stopPropagation(); handleDragStart(i, e.touches[0].clientY); }}
+                    onMouseDown={e => { e.stopPropagation(); handleDragStart(i, e.clientY); }}
                   >
-                    {u.name}
+                    ⠿
+                  </span>
+                )}
+                <button
+                  className="glass-panel"
+                  style={{
+                    flex: 1, padding: '16px', borderRadius: '12px',
+                    border: deleteMode ? '2px solid #ef4444' : (dragOverIndex === i && isDragging ? '2px solid #3b82f6' : 'none'),
+                    cursor: isDragging ? 'grabbing' : 'pointer', fontWeight: 'bold', color: '#334155', textAlign: 'center'
+                  }}
+                  onClick={() => { if (!isDragging) { deleteMode ? removeUser(u) : handleLogin(u.name); } }}
+                >
+                  {u.name}
+                </button>
+                {deleteMode && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeUser(u); }}
+                    style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '28px', height: '28px', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                  >
+                    ×
                   </button>
-                  {deleteMode && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeUser(u); }}
-                      style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '28px', height: '28px', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                )}
+              </div>
+            ))}
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {!deleteMode && !sortMode && (
+            {!deleteMode && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   className="input-field"
@@ -546,21 +577,12 @@ export default function Page() {
                 </button>
               </div>
             )}
-            {sortMode ? (
-              <button
-                onClick={() => setSortMode(false)}
-                style={{ width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
-              >
-                完了
-              </button>
-            ) : (
-              <button
-                onClick={handleDeleteUser}
-                style={{ width: '100%', background: deleteMode ? '#64748b' : '#ef4444', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
-              >
-                {deleteMode ? 'キャンセル' : 'ユーザーを削除'}
-              </button>
-            )}
+            <button
+              onClick={handleDeleteUser}
+              style={{ width: '100%', background: deleteMode ? '#64748b' : '#ef4444', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
+            >
+              {deleteMode ? 'キャンセル' : 'ユーザーを削除'}
+            </button>
           </div>
         </div>
       </div>

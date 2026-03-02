@@ -26,12 +26,12 @@ export async function getUsers(): Promise<User[]> {
   }
 }
 
-// ユーザーを追加
-export async function addUser(name: string): Promise<User | null> {
+// ユーザーを追加（末尾に配置）
+export async function addUser(name: string, sortOrder?: number): Promise<User | null> {
   try {
     const { data, error } = await supabase
       .from('user')
-      .insert([{ name }])
+      .insert([{ name, sort_order: sortOrder ?? 9999 }])
       .select()
       .single();
 
