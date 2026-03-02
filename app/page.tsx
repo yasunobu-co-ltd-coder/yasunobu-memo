@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Deal, Tri, AssignmentType, getDeals, createDeal, updateDeal, deleteDeal } from '../lib/deals';
-import { User, getUsers, addUser, deleteUser } from '../lib/users';
+import { User, getUsers, addUser, deleteUser, updateUserOrder } from '../lib/users';
 import { getLastChecked, updateLastChecked } from '../lib/unread';
 
 const TRI_SCORE: Record<Tri, number> = { 高: 3, 中: 2, 低: 1 };
@@ -34,7 +34,9 @@ export default function Page() {
   const [me, setMe] = useState<string>('');
   const [users, setUsers] = useState<User[]>([]);
   const [deleteMode, setDeleteMode] = useState(false);
+  const [sortMode, setSortMode] = useState(false);
   const [newUserName, setNewUserName] = useState('');
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Data
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -188,6 +190,31 @@ export default function Page() {
       return;
     }
     setDeleteMode(true);
+  };
+
+  // Long press for sort mode
+  const handleLongPressStart = () => {
+    longPressTimerRef.current = setTimeout(() => {
+      setSortMode(true);
+      setDeleteMode(false);
+    }, 600);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  // Move user up/down
+  const moveUser = async (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= users.length) return;
+    const newUsers = [...users];
+    [newUsers[index], newUsers[targetIndex]] = [newUsers[targetIndex], newUsers[index]];
+    setUsers(newUsers);
+    await Promise.all(newUsers.map((u, i) => updateUserOrder(u.id, i)));
   };
 
   // Submit new deal
@@ -442,30 +469,66 @@ export default function Page() {
       <div className="login-screen">
         <div className="login-card">
           <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>matip</h1>
-          <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '32px' }}>担当者を選択して開始</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-            {users.map(u => (
-              <div key={u.id} style={{ position: 'relative' }}>
-                <button
-                  className="glass-panel"
-                  style={{ width: '100%', padding: '16px', borderRadius: '12px', border: deleteMode ? '2px solid #ef4444' : 'none', cursor: 'pointer', fontWeight: 'bold', color: '#334155' }}
-                  onClick={() => deleteMode ? removeUser(u) : handleLogin(u.name)}
-                >
-                  {u.name}
-                </button>
-                {deleteMode && (
+          <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '32px' }}>
+            {sortMode ? '▲▼で並び替え' : '担当者を選択して開始'}
+          </p>
+
+          {sortMode ? (
+            /* Sort Mode: vertical list with ▲▼ */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+              {users.map((u, i) => (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <button
+                      onClick={() => moveUser(i, -1)}
+                      disabled={i === 0}
+                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1, padding: '0 4px', lineHeight: 1 }}
+                    >▲</button>
+                    <button
+                      onClick={() => moveUser(i, 1)}
+                      disabled={i === users.length - 1}
+                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: i === users.length - 1 ? 'default' : 'pointer', opacity: i === users.length - 1 ? 0.3 : 1, padding: '0 4px', lineHeight: 1 }}
+                    >▼</button>
+                  </div>
+                  <div className="glass-panel" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', fontWeight: 'bold', color: '#334155', textAlign: 'center' }}>
+                    {u.name}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Normal Mode: grid */
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              {users.map(u => (
+                <div key={u.id} style={{ position: 'relative' }}>
                   <button
-                    onClick={(e) => { e.stopPropagation(); removeUser(u); }}
-                    style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '28px', height: '28px', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                    className="glass-panel"
+                    style={{ width: '100%', padding: '16px', borderRadius: '12px', border: deleteMode ? '2px solid #ef4444' : 'none', cursor: 'pointer', fontWeight: 'bold', color: '#334155' }}
+                    onClick={() => deleteMode ? removeUser(u) : handleLogin(u.name)}
+                    onTouchStart={!deleteMode ? handleLongPressStart : undefined}
+                    onTouchEnd={!deleteMode ? handleLongPressEnd : undefined}
+                    onTouchCancel={!deleteMode ? handleLongPressEnd : undefined}
+                    onMouseDown={!deleteMode ? handleLongPressStart : undefined}
+                    onMouseUp={!deleteMode ? handleLongPressEnd : undefined}
+                    onMouseLeave={!deleteMode ? handleLongPressEnd : undefined}
                   >
-                    ×
+                    {u.name}
                   </button>
-                )}
-              </div>
-            ))}
-          </div>
+                  {deleteMode && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeUser(u); }}
+                      style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '28px', height: '28px', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {!deleteMode && (
+            {!deleteMode && !sortMode && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   className="input-field"
@@ -483,12 +546,21 @@ export default function Page() {
                 </button>
               </div>
             )}
-            <button
-              onClick={handleDeleteUser}
-              style={{ width: '100%', background: deleteMode ? '#64748b' : '#ef4444', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
-            >
-              {deleteMode ? 'キャンセル' : 'ユーザーを削除'}
-            </button>
+            {sortMode ? (
+              <button
+                onClick={() => setSortMode(false)}
+                style={{ width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
+              >
+                完了
+              </button>
+            ) : (
+              <button
+                onClick={handleDeleteUser}
+                style={{ width: '100%', background: deleteMode ? '#64748b' : '#ef4444', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
+              >
+                {deleteMode ? 'キャンセル' : 'ユーザーを削除'}
+              </button>
+            )}
           </div>
         </div>
       </div>

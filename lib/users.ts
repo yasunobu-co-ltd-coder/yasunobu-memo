@@ -4,6 +4,7 @@ export type User = {
   id: string;
   name: string;
   created_at: string;
+  sort_order: number;
 };
 
 // ユーザー一覧を取得
@@ -12,7 +13,7 @@ export async function getUsers(): Promise<User[]> {
     const { data, error } = await supabase
       .from('user')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('sort_order', { ascending: true });
 
     if (error) {
       console.error('Error fetching users:', error.message);
@@ -42,6 +43,18 @@ export async function addUser(name: string): Promise<User | null> {
   } catch (e) {
     console.error('Exception adding user:', e);
     return null;
+  }
+}
+
+// ユーザーの並び順を更新
+export async function updateUserOrder(id: string, sortOrder: number): Promise<void> {
+  try {
+    await supabase
+      .from('user')
+      .update({ sort_order: sortOrder })
+      .eq('id', id);
+  } catch (e) {
+    console.error('Exception updating sort_order:', e);
   }
 }
 
