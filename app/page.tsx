@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { Deal, Tri, AssignmentType, getDeals, createDeal, updateDeal, deleteDeal } from '../lib/deals';
+import { Deal, Tri, AssignmentType, getDeals, updateDeal, deleteDeal } from '../lib/deals';
 import { User, getUsers, addUser, deleteUser, updateUserOrder } from '../lib/users';
 import { getLastChecked, updateLastChecked } from '../lib/unread';
+import { PushNotificationUI } from './components/PushNotificationUI';
 
 const TRI_SCORE: Record<Tri, number> = { 高: 3, 中: 2, 低: 1 };
 
@@ -34,7 +35,14 @@ export default function Page() {
   const [me, setMe] = useState<string>('');
   const [users, setUsers] = useState<User[]>([]);
   const [deleteMode, setDeleteMode] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [newUserName, setNewUserName] = useState('');
+
+  // Delete confirmation modal
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [deleteRefs, setDeleteRefs] = useState<{ counts: Record<string, number>; canDelete: boolean } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Drag & Drop
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -83,6 +91,9 @@ export default function Page() {
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [calFilter, setCalFilter] = useState<'全件' | '自分担当'>('自分担当');
+
+  // 自分のUUID（フィルタ比較用）
+  const meId = useMemo(() => users.find(u => u.name === me)?.id || '', [users, me]);
 
   // Voice Input
   const [isRecording, setIsRecording] = useState(false);
@@ -136,7 +147,8 @@ export default function Page() {
   const handleLogin = (name: string) => {
     setMe(name);
     localStorage.setItem('yasunobu_me', name);
-    setAssignee(name);
+    const otherUser = users.find(u => u.name !== name);
+    setAssignee(otherUser?.id || '');
   };
 
   const logout = () => {
@@ -161,28 +173,45 @@ export default function Page() {
     }
   };
 
-  // Remove user from Supabase with task check
+  // Remove user from Supabase with reference check
   const removeUser = async (user: User) => {
     if (users.length <= 1) {
       alert('最低1人のユーザーが必要です');
       return;
     }
-
-    // Check if user has assigned tasks in Supabase (open or done)
-    const allDeals = await getDeals();
-    const userTasks = allDeals.filter(d => d.assignee === user.name);
-    if (userTasks.length > 0) {
-      alert(`「${user.name}」には${userTasks.length}件の案件があるため削除できません。\n案件をすべて削除してから再度お試しください。`);
-      return;
+    // モーダルを開いて参照件数を取得
+    setDeleteTarget(user);
+    setDeleteRefs(null);
+    setDeleteError(null);
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/users/${user.id}/refs`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setDeleteRefs({ counts: data.counts, canDelete: data.canDelete });
+    } catch (e: unknown) {
+      setDeleteError(e instanceof Error ? e.message : '参照件数の取得に失敗しました');
+    } finally {
+      setDeleteLoading(false);
     }
+  };
 
-    if (!confirm(`「${user.name}」を削除しますか？`)) return;
-    const ok = await deleteUser(user.id);
+  const confirmDeleteUser = async () => {
+    if (!deleteTarget) return;
+    const ok = await deleteUser(deleteTarget.id);
     if (ok) {
-      setUsers(users.filter(u => u.id !== user.id));
+      setUsers(users.filter(u => u.id !== deleteTarget.id));
     } else {
       alert('ユーザーの削除に失敗しました');
     }
+    setDeleteTarget(null);
+    setDeleteRefs(null);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteTarget(null);
+    setDeleteRefs(null);
+    setDeleteError(null);
   };
 
   // Handle delete user flow
@@ -247,11 +276,16 @@ export default function Page() {
     setIsDragging(false);
   };
 
-  // Submit new deal
+  // Submit new deal（サーバーAPI経由 → Push通知自動送信）
   const submit = async () => {
-    if (!me) return;
+    if (!me || submitting) return;
+    const meUser = users.find(u => u.name === me);
+    if (!meUser) return;
+
+    setSubmitting(true);
+
     const newDeal = {
-      created_by: me,
+      created_by: meUser.id,
       client_name: clientName.trim(),
       memo: memo.trim(),
       due_date: dueDate,
@@ -259,13 +293,24 @@ export default function Page() {
       profit,
       urgency,
       assignment_type: assignmentType,
-      assignee: assignmentType === '自分で' ? me : assignee,
-      status: 'open' as const,
+      assignee: assignmentType === '自分で' ? meUser.id : (assignee || meUser.id),
+      status: 'open',
     };
 
-    const created = await createDeal(newDeal);
-    if (created) {
-      setDeals([created, ...deals]);
+    try {
+      const res = await fetch('/api/yasunobu-memo/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDeal),
+      });
+      const data = await res.json();
+      if (res.ok && data.deal) {
+        setDeals([data.deal, ...deals]);
+      } else {
+        console.error('Memo create failed:', data.error);
+      }
+    } catch (e) {
+      console.error('Memo create exception:', e);
     }
 
     // Reset & Nav
@@ -274,6 +319,9 @@ export default function Page() {
     setDueDate(todayYmd());
     setImportance('中');
     setTab('list');
+
+    // 5秒間連打防止
+    setTimeout(() => setSubmitting(false), 5000);
   };
 
   // Mark as done
@@ -294,7 +342,7 @@ export default function Page() {
 
   // Delete deal permanently
   const handleDelete = async (id: string) => {
-    if (!confirm('この案件を完全に削除しますか？')) return;
+    if (!confirm('このメモをデータベースから完全に削除します。\nこの操作は取り消せません。\n\n本当に削除しますか？')) return;
     const success = await deleteDeal(id);
     if (success) {
       setDeals(deals.filter(d => d.id !== id));
@@ -419,8 +467,8 @@ export default function Page() {
 
   // Notifications: deals assigned to me by others
   const notifications = useMemo(() => {
-    return deals.filter(d => d.assignee === me && d.created_by !== me);
-  }, [deals, me]);
+    return deals.filter(d => d.assignee === meId && d.created_by !== meId);
+  }, [deals, meId]);
 
   const unreadCount = useMemo(() => {
     if (!lastCheckedNotif) return notifications.length;
@@ -442,7 +490,7 @@ export default function Page() {
       list = list.filter(d => (d.client_name || '').includes(query) || (d.memo || '').includes(query));
     }
 
-    if (filter === '自分担当' && me) list = list.filter(d => d.assignee === me);
+    if (filter === '自分担当' && meId) list = list.filter(d => d.assignee === meId);
     if (filter === '任せる') list = list.filter(d => d.assignment_type === '任せる');
     if (filter === '自分で') list = list.filter(d => d.assignment_type === '自分で');
     if (filter === '期限切れ') list = list.filter(d => d.due_date < now);
@@ -585,6 +633,88 @@ export default function Page() {
             </button>
           </div>
         </div>
+
+        {/* 削除確認モーダル */}
+        {deleteTarget && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: '16px',
+          }} onClick={closeDeleteModal}>
+            <div
+              className="glass-panel"
+              style={{ maxWidth: '400px', width: '100%', padding: '24px', borderRadius: '16px' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 style={{ margin: '0 0 16px', color: '#1e293b' }}>
+                「{deleteTarget.name}」の参照状況
+              </h3>
+
+              {deleteLoading && (
+                <p style={{ color: '#64748b', textAlign: 'center' }}>読み込み中...</p>
+              )}
+
+              {deleteError && (
+                <p style={{ color: '#ef4444' }}>エラー: {deleteError}</p>
+              )}
+
+              {deleteRefs && (
+                <>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px', fontSize: '14px' }}>
+                    <tbody>
+                      {[
+                        ['メモ（作成）', deleteRefs.counts.memo_created],
+                        ['メモ（担当）', deleteRefs.counts.memo_assigned],
+                        ['未読', deleteRefs.counts.memo_unread],
+                        ['通知購読', deleteRefs.counts.push_subs],
+                        ['通知ログ', deleteRefs.counts.notif_triggered],
+                      ].map(([label, count]) => (
+                        <tr key={label as string} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '8px 4px', color: '#475569' }}>{label}</td>
+                          <td style={{
+                            padding: '8px 4px', textAlign: 'right', fontWeight: 'bold',
+                            color: (count as number) > 0 ? '#ef4444' : '#22c55e',
+                          }}>
+                            {count}件
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {deleteRefs.canDelete ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={closeDeleteModal}
+                        style={{ flex: 1, padding: '12px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
+                      >
+                        キャンセル
+                      </button>
+                      <button
+                        onClick={confirmDeleteUser}
+                        style={{ flex: 1, padding: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
+                      >
+                        削除する
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '14px', margin: '0 0 12px' }}>
+                        関連データが残っているため削除できません
+                      </p>
+                      <button
+                        onClick={closeDeleteModal}
+                        style={{ width: '100%', padding: '12px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
+                      >
+                        閉じる
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -607,7 +737,7 @@ export default function Page() {
           <div className="brand">yasunobu <span style={{ fontSize: '10px', opacity: 0.7 }}>v1.1</span></div>
           <button onClick={openNotif} className="notif-bell">
             🔔
-            {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
+            {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
           </button>
           <button onClick={() => { setShowCalendar(true); setSelectedDate(null); }} className="notif-bell">
             📅
@@ -617,6 +747,11 @@ export default function Page() {
           <span className="user-badge" onClick={logout}>{me}</span>
         </div>
       </header>
+
+      {/* Push通知設定 */}
+      <div style={{ padding: '0 16px' }}>
+        <PushNotificationUI userId={users.find(u => u.name === me)?.id || ''} />
+      </div>
 
       {/* Content Area */}
       <div className="content">
@@ -730,13 +865,13 @@ export default function Page() {
 
               {assignmentType === '任せる' && (
                 <select className="input-field" value={assignee} onChange={e => setAssignee(e.target.value)}>
-                  {users.filter(u => u.name !== me).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                  {users.filter(u => u.name !== me).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               )}
             </div>
 
-            <button className="primary-btn" onClick={submit} disabled={!memo.trim()}>
-              登録する
+            <button className="primary-btn" onClick={submit} disabled={!memo.trim() || submitting}>
+              {submitting ? '読み込み中...' : '登録する'}
             </button>
             <div style={{ height: '40px' }} />
           </div>
@@ -816,8 +951,8 @@ export default function Page() {
 
                   <div className="assignee-row">
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.assignee === me ? '#3b82f6' : '#cbd5e1' }} />
-                      {d.assignee}
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.assignee === meId ? '#3b82f6' : '#cbd5e1' }} />
+                      {d.assignee_user?.name ?? '(不明)'}
                     </span>
 
                     {d.status === 'open' ? (
@@ -927,7 +1062,7 @@ export default function Page() {
               notifications.map(d => (
                 <div key={d.id} style={{ padding: '14px', background: '#f8fafc', borderRadius: '12px', marginBottom: '10px', border: '1px solid #e2e8f0' }}>
                   <div style={{ fontSize: '13px', color: '#2563eb', fontWeight: '600', marginBottom: '6px' }}>
-                    {d.created_by} さんから依頼
+                    {d.created_user?.name ?? '(不明)'} さんから依頼
                   </div>
                   <div style={{ fontSize: '15px', fontWeight: '700', marginBottom: '4px' }}>{d.client_name || '(相手不明)'}</div>
                   <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>{d.memo}</div>
@@ -952,7 +1087,7 @@ export default function Page() {
         for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
         // Build a map of due_date -> deals (open only, filtered)
-        const calDeals = deals.filter(d => d.status === 'open' && (calFilter === '全件' || d.assignee === me));
+        const calDeals = deals.filter(d => d.status === 'open' && (calFilter === '全件' || d.assignee === meId));
         const dueDateMap: Record<string, Deal[]> = {};
         calDeals.forEach(d => {
           if (!d.due_date) return;

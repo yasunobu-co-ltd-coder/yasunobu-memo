@@ -7,7 +7,7 @@ export type AssignmentType = '任せる' | '自分で';
 export type Deal = {
   id: string;
   created_at: string;
-  created_by: string;
+  created_by: string;       // UUID
   client_name: string;
   memo: string;
   due_date: string;
@@ -15,54 +15,30 @@ export type Deal = {
   profit: Tri;
   urgency: Tri;
   assignment_type: AssignmentType;
-  assignee: string;
+  assignee: string;          // UUID
   status: 'open' | 'done';
-  image_url?: string; // 写真URL
+  image_url?: string;
+  // JOIN結果
+  created_user?: { name: string } | null;
+  assignee_user?: { name: string } | null;
 };
 
-// CREATE: 新規案件を作成
-export async function createDeal(deal: Omit<Deal, 'id' | 'created_at'>): Promise<Deal | null> {
-  try {
-    console.log('Creating deal:', deal);
-    const { data, error } = await supabase
-      .from('yasunobu-memo')
-      .insert([deal])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating deal:', JSON.stringify(error, null, 2));
-      console.error('Error message:', error.message);
-      console.error('Error code:', error.code);
-      return null;
-    }
-    console.log('Deal created:', data);
-    return data;
-  } catch (e) {
-    console.error('Exception creating deal:', e);
-    return null;
-  }
-}
+// リレーションselect（created_by → users, assignee → users）
+const DEAL_SELECT = '*, created_user:users!yasunobu-memo_created_by_fkey(name), assignee_user:users!yasunobu-memo_assignee_fkey(name)';
 
 // READ: 案件一覧を取得
 export async function getDeals(): Promise<Deal[]> {
   try {
-    console.log('Fetching deals...');
     const { data, error } = await supabase
       .from('yasunobu-memo')
-      .select('*')
+      .select(DEAL_SELECT)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching deals:', JSON.stringify(error, null, 2));
-      console.error('Error message:', error.message);
-      console.error('Error code:', error.code);
-      console.error('Error hint:', error.hint);
-      console.error('Error details:', error.details);
+      console.error('Error fetching deals:', error.message);
       return [];
     }
-    console.log('Deals fetched:', data?.length || 0, 'items');
-    return data || [];
+    return (data || []) as unknown as Deal[];
   } catch (e) {
     console.error('Exception fetching deals:', e);
     return [];
@@ -76,14 +52,14 @@ export async function updateDeal(id: string, updates: Partial<Deal>): Promise<De
       .from('yasunobu-memo')
       .update(updates)
       .eq('id', id)
-      .select()
+      .select(DEAL_SELECT)
       .single();
 
     if (error) {
       console.error('Error updating deal:', error);
       return null;
     }
-    return data;
+    return data as unknown as Deal;
   } catch (e) {
     console.error('Exception updating deal:', e);
     return null;
