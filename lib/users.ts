@@ -11,7 +11,7 @@ export type User = {
 export async function getUsers(): Promise<User[]> {
   try {
     const { data, error } = await supabase
-      .from('user')
+      .from('users')
       .select('*')
       .order('sort_order', { ascending: true });
 
@@ -30,7 +30,7 @@ export async function getUsers(): Promise<User[]> {
 export async function addUser(name: string, sortOrder?: number): Promise<User | null> {
   try {
     const { data, error } = await supabase
-      .from('user')
+      .from('users')
       .insert([{ name, sort_order: sortOrder ?? 9999 }])
       .select()
       .single();
@@ -50,7 +50,7 @@ export async function addUser(name: string, sortOrder?: number): Promise<User | 
 export async function updateUserOrder(id: string, sortOrder: number): Promise<void> {
   try {
     await supabase
-      .from('user')
+      .from('users')
       .update({ sort_order: sortOrder })
       .eq('id', id);
   } catch (e) {
@@ -62,7 +62,7 @@ export async function updateUserOrder(id: string, sortOrder: number): Promise<vo
 export async function deleteUser(id: string): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('user')
+      .from('users')
       .delete()
       .eq('id', id);
 
