@@ -115,22 +115,22 @@ export default function Page() {
     setUsers(data);
   }, []);
 
-  useEffect(() => {
-    if (isPinVerified) loadUsers();
-  }, [isPinVerified, loadUsers]);
-
-  // Load deals from Supabase（全案件取得はユーザー非依存）
+  // Load deals from Supabase
   const loadDeals = useCallback(async () => {
-    if (!isPinVerified) return;
     setLoading(true);
     const data = await getDeals();
     setDeals(data);
     setLoading(false);
-  }, [isPinVerified]);
+  }, []);
 
+  // PIN認証後にusers + dealsを並列取得（最大ボトルネック解消）
   useEffect(() => {
-    loadDeals();
-  }, [loadDeals]);
+    if (!isPinVerified) return;
+    const t0 = performance.now();
+    Promise.all([loadUsers(), loadDeals()]).then(() => {
+      console.log(`[perf] initial load: ${(performance.now() - t0).toFixed(0)}ms`);
+    });
+  }, [isPinVerified, loadUsers, loadDeals]);
 
   // PIN verification handler
   const handlePinSubmit = () => {

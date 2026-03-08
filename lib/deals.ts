@@ -29,11 +29,14 @@ const DEAL_SELECT = '*, created_user:users!created_by(name), assignee_user:users
 // READ: 案件一覧を取得
 export async function getDeals(): Promise<Deal[]> {
   try {
+    const t0 = performance.now();
     const { data, error } = await supabase
       .from('yasunobu-memo')
       .select(DEAL_SELECT)
       .order('created_at', { ascending: false })
-      .limit(500);
+      .limit(200);
+
+    console.log(`[perf] getDeals: ${(performance.now() - t0).toFixed(0)}ms, rows=${data?.length ?? 0}`);
 
     if (error) {
       console.error('Error fetching deals:', error.message);
