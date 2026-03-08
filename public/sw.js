@@ -62,7 +62,7 @@ self.addEventListener('push', (event) => {
         payload = event.data.json();
     } catch (e) {
         payload = {
-            title: 'yasunobu',
+            title: 'yasunobu-memo',
             body: event.data.text(),
         };
     }
@@ -81,7 +81,7 @@ self.addEventListener('push', (event) => {
     };
 
     event.waitUntil(
-        self.registration.showNotification(payload.title || 'yasunobu', options)
+        self.registration.showNotification(payload.title || 'yasunobu-memo', options)
     );
 });
 

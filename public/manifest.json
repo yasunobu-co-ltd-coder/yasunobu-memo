@@ -1,6 +1,6 @@
 {
-  "name": "yasunobu",
-  "short_name": "yasunobu",
+  "name": "yasunobu-memo",
+  "short_name": "yasunobu-memo",
   "description": "案件管理アプリ",
   "start_url": "/",
   "display": "standalone",

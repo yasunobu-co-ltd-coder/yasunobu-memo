@@ -5,6 +5,9 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(node -e \":*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\yui08\\OneDrive\\デスクトップ\\安信工業\\Performax_案件\\安信工業株式会社\\yasunobu-memo\\app\\api\\users\\[id]"
     ]
   }
 }

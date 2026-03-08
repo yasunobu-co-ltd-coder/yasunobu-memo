@@ -461,9 +461,9 @@ export default function Page() {
 
   // Load last_checked_at from DB when user logs in
   useEffect(() => {
-    if (!me) return;
-    getLastChecked(me).then(val => setLastCheckedNotif(val));
-  }, [me]);
+    if (!meId) return;
+    getLastChecked(meId).then(val => setLastCheckedNotif(val));
+  }, [meId]);
 
   // Notifications: deals assigned to me by others
   const notifications = useMemo(() => {
@@ -477,7 +477,7 @@ export default function Page() {
 
   const openNotif = async () => {
     setShowNotif(true);
-    await updateLastChecked(me);
+    await updateLastChecked(meId);
     setLastCheckedNotif(new Date().toISOString());
   };
 
@@ -511,7 +511,7 @@ export default function Page() {
     return (
       <div className="login-screen">
         <div className="login-card">
-          <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>yasunobu</h1>
+          <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>yasunobu-memo</h1>
           <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '32px' }}>PINコードを入力してください</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
             <input
@@ -546,7 +546,7 @@ export default function Page() {
     return (
       <div className="login-screen">
         <div className="login-card">
-          <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>yasunobu</h1>
+          <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>yasunobu-memo</h1>
           <p style={{ textAlign: 'center', color: '#64748b', marginBottom: isDragging ? '16px' : '32px' }}>
             {isDragging ? 'ドラッグして並び替え' : '担当者を選択して開始'}
           </p>
@@ -734,7 +734,7 @@ export default function Page() {
       {/* Header */}
       <header className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div className="brand">yasunobu <span style={{ fontSize: '10px', opacity: 0.7 }}>v1.1</span></div>
+          <div className="brand">yasunobu-memo <span style={{ fontSize: '10px', opacity: 0.7 }}>v1.1</span></div>
           <button onClick={openNotif} className="notif-bell">
             🔔
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}

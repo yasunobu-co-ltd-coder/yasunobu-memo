@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "yasunobu",
+  title: "yasunobu-memo",
   description: "案件管理アプリ",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "yasunobu",
+    title: "yasunobu-memo",
   },
   icons: {
     icon: [
