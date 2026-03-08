@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-server';
 import { sendPushToAll } from '../../../../lib/push';
 
@@ -71,18 +72,26 @@ export async function POST(req: NextRequest) {
       assignee_user: assigneeUserRow ? { name: assigneeUserRow.name } : null,
     };
 
-    // 3) Push通知（バックグラウンド実行 — レスポンスをブロックしない）
+    // 3) Push通知（after() でレスポンス返却後にサーバーレス関数内で実行）
     const title = `${createdName}がメモ追加`;
     const notifBody = client_name
       ? `${client_name}: ${memo}`.slice(0, 180)
       : memo.slice(0, 180);
 
-    sendPushToAll(
-      { title, body: notifBody, url: '/', memo_id: deal.id },
-      created_by,
-      deal.id,
-    ).catch(err => {
-      console.error('[yasunobu-memo/create] push error:', err);
+    after(async () => {
+      const t0 = Date.now();
+      try {
+        const result = await sendPushToAll(
+          { title, body: notifBody, url: '/', memo_id: deal.id },
+          created_by,
+          deal.id,
+        );
+        console.log(
+          `[push] done in ${Date.now() - t0}ms — sent=${result.sent_to_count} ok=${result.success_count} fail=${result.failure_count}`,
+        );
+      } catch (err) {
+        console.error(`[push] failed after ${Date.now() - t0}ms:`, err);
+      }
     });
 
     return NextResponse.json({ deal: dealWithNames });
