@@ -1186,7 +1186,7 @@ export default function Page() {
                       <div key={d.id} style={{ padding: '10px', background: '#f8fafc', borderRadius: '10px', marginBottom: '8px', border: '1px solid #e2e8f0' }}>
                         <div style={{ fontSize: '14px', fontWeight: '700', marginBottom: '2px' }}>{d.client_name || '(相手不明)'}</div>
                         <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>{d.memo}</div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>担当: {d.assignee}</div>
+                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>担当: {d.assignee_user?.name ?? '(不明)'}</div>
                       </div>
                     ))
                   )}
