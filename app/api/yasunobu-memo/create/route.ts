@@ -55,13 +55,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
 
-    // 2) 作成者・担当者の名前を取得
-    const { data: createdUser } = await supabaseAdmin
-      .from('users').select('name').eq('id', created_by).single();
-    const { data: assigneeUserRow } = await supabaseAdmin
-      .from('users').select('name').eq('id', deal.assignee).single();
+    // 2) 作成者・担当者の名前を一括取得
+    const userIds = [...new Set([created_by, deal.assignee])];
+    const { data: userRows } = await supabaseAdmin
+      .from('users').select('id, name').in('id', userIds);
 
-    const createdName = createdUser?.name ?? '誰か';
+    const userMap = new Map((userRows ?? []).map((u: { id: string; name: string }) => [u.id, u.name]));
+    const createdName = userMap.get(created_by) ?? '誰か';
+    const createdUser = userMap.has(created_by) ? { name: userMap.get(created_by)! } : null;
+    const assigneeUserRow = userMap.has(deal.assignee) ? { name: userMap.get(deal.assignee)! } : null;
 
     const dealWithNames = {
       ...deal,
