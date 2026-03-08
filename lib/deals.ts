@@ -24,7 +24,7 @@ export type Deal = {
 };
 
 // リレーションselect（created_by → users, assignee → users）
-const DEAL_SELECT = '*, created_user:users!yasunobu-memo_created_by_fkey(name), assignee_user:users!yasunobu-memo_assignee_fkey(name)';
+const DEAL_SELECT = '*, created_user:users!created_by(name), assignee_user:users!assignee(name)';
 
 // READ: 案件一覧を取得
 export async function getDeals(): Promise<Deal[]> {
