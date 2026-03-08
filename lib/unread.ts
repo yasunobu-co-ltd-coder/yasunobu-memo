@@ -7,7 +7,7 @@ export async function getLastChecked(userId: string): Promise<string | null> {
       .from('yasunobu-memo-unread')
       .select('last_checked_at')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error || !data) return null;
     return data.last_checked_at;
