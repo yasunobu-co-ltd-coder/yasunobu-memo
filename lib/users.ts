@@ -3,7 +3,6 @@ import { supabase } from './supabase';
 export type User = {
   id: string;
   name: string;
-  created_at: string;
   sort_order: number;
 };
 
@@ -12,7 +11,7 @@ export async function getUsers(): Promise<User[]> {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select('id, name, sort_order')
       .order('sort_order', { ascending: true });
 
     if (error) {

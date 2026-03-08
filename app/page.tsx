@@ -119,14 +119,14 @@ export default function Page() {
     if (isPinVerified) loadUsers();
   }, [isPinVerified, loadUsers]);
 
-  // Load deals from Supabase
+  // Load deals from Supabase（全案件取得はユーザー非依存）
   const loadDeals = useCallback(async () => {
-    if (!isPinVerified || !me) return;
+    if (!isPinVerified) return;
     setLoading(true);
     const data = await getDeals();
     setDeals(data);
     setLoading(false);
-  }, [isPinVerified, me]);
+  }, [isPinVerified]);
 
   useEffect(() => {
     loadDeals();

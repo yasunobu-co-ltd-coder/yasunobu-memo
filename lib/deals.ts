@@ -32,7 +32,8 @@ export async function getDeals(): Promise<Deal[]> {
     const { data, error } = await supabase
       .from('yasunobu-memo')
       .select(DEAL_SELECT)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
 
     if (error) {
       console.error('Error fetching deals:', error.message);
