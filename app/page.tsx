@@ -5,6 +5,7 @@ import { Deal, Tri, AssignmentType, getDeals, updateDeal, deleteDeal } from '../
 import { User, getUsers, addUser, deleteUser, updateUserOrder } from '../lib/users';
 import { getLastChecked, updateLastChecked } from '../lib/unread';
 import { PushNotificationUI } from './components/PushNotificationUI';
+import { supabase } from '../lib/supabase';
 
 const TRI_SCORE: Record<Tri, number> = { 高: 3, 中: 2, 低: 1 };
 
@@ -101,8 +102,13 @@ export default function Page() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
 
-  // Check PIN from sessionStorage on mount
+  // Check PIN from sessionStorage on mount + Supabase接続プリウォーム
   useEffect(() => {
+    // PIN画面表示中にSupabase TLS接続を確立（コールドスタート~1s を先に消化）
+    supabase.from('users').select('id').limit(1).then(() => {
+      console.log('[perf] supabase connection warmed');
+    });
+
     const verified = sessionStorage.getItem('yasunobu_pin_verified');
     if (verified === 'true') {
       setIsPinVerified(true);
