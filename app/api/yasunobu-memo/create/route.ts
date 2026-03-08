@@ -71,21 +71,19 @@ export async function POST(req: NextRequest) {
       assignee_user: assigneeUserRow ? { name: assigneeUserRow.name } : null,
     };
 
-    // 3) Push通知
+    // 3) Push通知（バックグラウンド実行 — レスポンスをブロックしない）
     const title = `${createdName}がメモ追加`;
     const notifBody = client_name
       ? `${client_name}: ${memo}`.slice(0, 180)
       : memo.slice(0, 180);
 
-    try {
-      await sendPushToAll(
-        { title, body: notifBody, url: '/', memo_id: deal.id },
-        created_by,
-        deal.id,
-      );
-    } catch (err) {
+    sendPushToAll(
+      { title, body: notifBody, url: '/', memo_id: deal.id },
+      created_by,
+      deal.id,
+    ).catch(err => {
       console.error('[yasunobu-memo/create] push error:', err);
-    }
+    });
 
     return NextResponse.json({ deal: dealWithNames });
   } catch (e) {

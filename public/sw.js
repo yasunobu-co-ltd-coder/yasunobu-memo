@@ -27,6 +27,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+    // Skip non-GET requests (POST etc. cannot be cached)
+    if (event.request.method !== 'GET') return;
+
     // Network first strategy for API calls
     if (event.request.url.includes('supabase.co')) {
         event.respondWith(fetch(event.request));
