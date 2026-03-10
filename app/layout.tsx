@@ -22,6 +22,13 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "yasunobu-memo",
   },
+  openGraph: {
+    title: "yasunobu-memo",
+    description: "案件管理アプリ",
+    siteName: "yasunobu-memo",
+    images: [{ url: "/icon-512.png", width: 512, height: 512, type: "image/png" }],
+    type: "website",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "48x48" },
