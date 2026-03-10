@@ -7,6 +7,9 @@ import { getLastChecked, updateLastChecked } from '../lib/unread';
 import { PushNotificationUI } from './components/PushNotificationUI';
 import { supabase } from '../lib/supabase';
 
+const APP_VERSION = 'v1.0.0';
+const COMMIT_SHA = process.env.NEXT_PUBLIC_COMMIT_SHA || 'dev';
+
 const TRI_SCORE: Record<Tri, number> = { 高: 3, 中: 2, 低: 1 };
 
 // PIN認証コード
@@ -520,6 +523,7 @@ export default function Page() {
   if (!isPinVerified) {
     return (
       <div className="login-screen">
+        <span style={{ position: 'fixed', top: '8px', left: '12px', fontSize: '11px', color: '#94a3b8' }}>{APP_VERSION} ({COMMIT_SHA})</span>
         <div className="login-card">
           <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>yasunobu-memo</h1>
           <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '32px' }}>PINコードを入力してください</p>
