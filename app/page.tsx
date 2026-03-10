@@ -113,6 +113,10 @@ export default function Page() {
     if (verified === 'true') {
       setIsPinVerified(true);
     }
+    const savedMe = localStorage.getItem('yasunobu_me');
+    if (savedMe) {
+      setMe(savedMe);
+    }
   }, []);
 
   // Load users from Supabase

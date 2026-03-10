@@ -1,56 +1,32 @@
-const CACHE_NAME = 'yasunobu-v2';
+// ============================================================
+// Service Worker — Push通知専用（キャッシュ制御なし）
+// ============================================================
 
-const urlsToCache = [
-    '/',
-];
-
-self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(urlsToCache);
-        })
-    );
+// install: 即座に activate へ移行
+self.addEventListener('install', () => {
     self.skipWaiting();
 });
 
+// activate: このアプリの旧キャッシュのみ削除（他アプリのキャッシュには触れない）
+const OWN_CACHE_PREFIX = 'yasunobu-';
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames
-                    .filter((name) => name !== CACHE_NAME)
+        caches.keys().then((names) =>
+            Promise.all(
+                names
+                    .filter((name) => name.startsWith(OWN_CACHE_PREFIX))
                     .map((name) => caches.delete(name))
-            );
-        })
+            )
+        )
     );
     self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-    // Skip non-GET requests (POST etc. cannot be cached)
-    if (event.request.method !== 'GET') return;
-
-    // Network first strategy for API calls
-    if (event.request.url.includes('supabase.co')) {
-        event.respondWith(fetch(event.request));
-        return;
+// SKIP_WAITING メッセージ受信時に即座に activate
+self.addEventListener('message', (event) => {
+    if (event.data?.type === 'SKIP_WAITING') {
+        self.skipWaiting();
     }
-
-    // Cache first for static assets
-    event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request).then((fetchResponse) => {
-                // Cache successful responses
-                if (fetchResponse.status === 200) {
-                    const responseClone = fetchResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseClone);
-                    });
-                }
-                return fetchResponse;
-            });
-        })
-    );
 });
 
 // ============================================================
@@ -96,13 +72,11 @@ self.addEventListener('notificationclick', (event) => {
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // 既にアプリが開いている場合はフォーカス
             for (const client of clientList) {
                 if (client.url.includes(self.location.origin) && 'focus' in client) {
                     return client.focus();
                 }
             }
-            // 開いていない場合は新しいウィンドウで開く
             return clients.openWindow(url);
         })
     );
