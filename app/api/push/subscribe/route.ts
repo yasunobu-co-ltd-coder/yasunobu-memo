@@ -4,6 +4,46 @@ import { supabaseAdmin } from '../../../../lib/supabase-server';
 export const runtime = 'nodejs';
 
 /**
+ * GET /api/push/subscribe?endpoint=...
+ * 購読状態を確認（user_id を上書きしない）
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const endpoint = req.nextUrl.searchParams.get('endpoint');
+    if (!endpoint) {
+      return NextResponse.json({ exists: false });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('push_subscriptions')
+      .select('id, user_id, notify_mode, enabled')
+      .eq('endpoint', endpoint)
+      .eq('enabled', true)
+      .maybeSingle();
+
+    if (error || !data) {
+      return NextResponse.json({ exists: false });
+    }
+
+    // 登録済みユーザーの名前を取得
+    const { data: user } = await supabaseAdmin
+      .from('users')
+      .select('name')
+      .eq('id', data.user_id)
+      .single();
+
+    return NextResponse.json({
+      exists: true,
+      notify_mode: data.notify_mode || 'all',
+      subscriber_name: user?.name || '',
+    });
+  } catch (e) {
+    console.error('[subscribe] GET exception:', e);
+    return NextResponse.json({ exists: false });
+  }
+}
+
+/**
  * POST /api/push/subscribe
  * Push購読を登録（upsert: endpoint重複時は更新 + enabled=true に戻す）
  */

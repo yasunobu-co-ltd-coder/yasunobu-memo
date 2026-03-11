@@ -15,6 +15,7 @@ export function PushNotificationUI({ userId }: PushNotificationUIProps) {
     isPwaInstalled,
     isIos,
     notifyMode,
+    subscriberName,
     subscribe,
     unsubscribe,
     updateNotifyMode,
@@ -134,7 +135,7 @@ export function PushNotificationUI({ userId }: PushNotificationUIProps) {
           borderBottom: 'none',
         }}>
           <span style={{ fontSize: '13px', color: '#166534' }}>
-            通知ON
+            通知ON{subscriberName ? `（${subscriberName}）` : ''}
           </span>
           <button
             onClick={unsubscribe}

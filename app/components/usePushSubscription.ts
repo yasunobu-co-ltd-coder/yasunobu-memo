@@ -25,6 +25,7 @@ export function usePushSubscription(userId: string) {
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [notifyMode, setNotifyMode] = useState<NotifyMode>('all');
+  const [subscriberName, setSubscriberName] = useState<string>('');
 
   // 初期状態チェック
   useEffect(() => {
@@ -52,9 +53,9 @@ export function usePushSubscription(userId: string) {
     });
   }, []);
 
-  // userId が有効になった + ブラウザ購読が既にある → DB にも再登録（同期）
+  // ブラウザ購読が既にある → DB の状態を確認（user_id は上書きしない）
   useEffect(() => {
-    if (!userId || !VAPID_PUBLIC_KEY) return;
+    if (!VAPID_PUBLIC_KEY) return;
     if (!('serviceWorker' in navigator)) return;
 
     navigator.serviceWorker.ready.then(async (registration) => {
@@ -62,24 +63,20 @@ export function usePushSubscription(userId: string) {
       if (!existing) return;
 
       try {
-        const res = await fetch('/api/push/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            subscription: existing.toJSON(),
-            user_id: userId,
-          }),
-        });
-        setIsSubscribed(true);
+        const res = await fetch('/api/push/subscribe?endpoint=' + encodeURIComponent(existing.endpoint));
         if (res.ok) {
           const data = await res.json();
-          if (data.notify_mode) setNotifyMode(data.notify_mode);
+          if (data.exists) {
+            setIsSubscribed(true);
+            if (data.notify_mode) setNotifyMode(data.notify_mode);
+            if (data.subscriber_name) setSubscriberName(data.subscriber_name);
+          }
         }
       } catch (err) {
         console.error('[usePush] sync error:', err);
       }
     });
-  }, [userId]);
+  }, []);
 
   // 購読登録
   const subscribe = useCallback(async () => {
@@ -178,6 +175,7 @@ export function usePushSubscription(userId: string) {
     isPwaInstalled,
     isIos,
     notifyMode,
+    subscriberName,
     subscribe,
     unsubscribe,
     updateNotifyMode,
