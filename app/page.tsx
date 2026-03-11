@@ -151,6 +151,9 @@ export default function Page() {
     if (pin === VALID_PIN) {
       setIsPinVerified(true);
       sessionStorage.setItem('yasunobu_pin_verified', 'true');
+      // 担当者選択画面を必ず表示するため、前回の選択をクリア
+      localStorage.removeItem('yasunobu_me');
+      setMe('');
       setPinError('');
     } else {
       setPinError('PINコードが正しくありません');
