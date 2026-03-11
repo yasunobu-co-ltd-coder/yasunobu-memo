@@ -37,9 +37,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, id: data.id });
+    return NextResponse.json({ success: true, id: data.id, notify_mode: data.notify_mode || 'all' });
   } catch (e) {
     console.error('[subscribe] exception:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/push/subscribe
+ * 通知モード更新 (notify_mode: 'all' | 'mine')
+ */
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { user_id, notify_mode } = body;
+
+    if (!user_id || !['all', 'mine'].includes(notify_mode)) {
+      return NextResponse.json({ error: 'user_id and valid notify_mode required' }, { status: 400 });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('push_subscriptions')
+      .update({ notify_mode })
+      .eq('user_id', user_id)
+      .eq('enabled', true);
+
+    if (error) {
+      console.error('[subscribe] patch error:', error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, notify_mode });
+  } catch (e) {
+    console.error('[subscribe] patch exception:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
