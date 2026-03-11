@@ -6,6 +6,7 @@ import { User, getUsers, addUser, deleteUser, updateUserOrder } from '../lib/use
 import { getLastChecked, updateLastChecked } from '../lib/unread';
 import { PushNotificationUI } from './components/PushNotificationUI';
 import UpdateNotice from './components/UpdateNotice';
+import { PullToRefresh } from './components/PullToRefresh';
 import { supabase } from '../lib/supabase';
 
 const APP_VERSION = 'v1.0.0';
@@ -145,6 +146,11 @@ export default function Page() {
       console.log(`[perf] initial load: ${(performance.now() - t0).toFixed(0)}ms`);
     });
   }, [isPinVerified, loadUsers, loadDeals]);
+
+  // Pull to Refresh
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([loadUsers(), loadDeals()]);
+  }, [loadUsers, loadDeals]);
 
   // PIN verification handler
   const handlePinSubmit = () => {
@@ -774,6 +780,7 @@ export default function Page() {
       </div>
 
       {/* Content Area */}
+      <PullToRefresh onRefresh={handleRefresh}>
       <div className="content">
 
         {/* NEW CASE FORM */}
@@ -1210,6 +1217,8 @@ export default function Page() {
           </div>
         );
       })()}
+
+      </PullToRefresh>
 
       {/* Bottom Navigation */}
       <nav className="bottom-nav">
