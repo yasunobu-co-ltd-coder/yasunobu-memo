@@ -73,7 +73,11 @@ export async function POST(req: NextRequest) {
     };
 
     // 3) Push通知（after() でレスポンス返却後にサーバーレス関数内で実行）
-    const title = `${createdName}がメモ追加`;
+    const assigneeName = userMap.get(deal.assignee) ?? '';
+    const isDelegated = deal.assignment_type === '任せる' && deal.assignee !== created_by && assigneeName;
+    const title = isDelegated
+      ? `${createdName}→${assigneeName}にメモ追加`
+      : `${createdName}がメモ追加`;
     const notifBody = client_name
       ? `${client_name}: ${memo}`.slice(0, 180)
       : memo.slice(0, 180);
