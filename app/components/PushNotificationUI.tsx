@@ -14,8 +14,10 @@ export function PushNotificationUI({ userId }: PushNotificationUIProps) {
     isLoading,
     isPwaInstalled,
     isIos,
+    notifyMode,
     subscribe,
     unsubscribe,
+    updateNotifyMode,
   } = usePushSubscription(userId);
 
   const [showIosGuide, setShowIosGuide] = useState(false);
@@ -122,32 +124,72 @@ export function PushNotificationUI({ userId }: PushNotificationUIProps) {
   // 購読済み
   if (isSubscribed) {
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 16px',
-        background: '#f0fdf4',
-        borderRadius: '12px',
-        marginBottom: '12px',
-        border: '1px solid #86efac',
-      }}>
-        <span style={{ fontSize: '13px', color: '#166534' }}>
-          通知ON
-        </span>
-        <button
-          onClick={unsubscribe}
-          disabled={isLoading}
-          style={{
-            padding: '4px 12px',
-            background: 'transparent',
-            color: '#6b7280',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            fontSize: '12px',
-            cursor: 'pointer',
-          }}
-        >
-          {isLoading ? '...' : 'OFF'}
-        </button>
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 16px',
+          background: '#f0fdf4',
+          borderRadius: '12px 12px 0 0',
+          border: '1px solid #86efac',
+          borderBottom: 'none',
+        }}>
+          <span style={{ fontSize: '13px', color: '#166534' }}>
+            通知ON
+          </span>
+          <button
+            onClick={unsubscribe}
+            disabled={isLoading}
+            style={{
+              padding: '4px 12px',
+              background: 'transparent',
+              color: '#6b7280',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            {isLoading ? '...' : 'OFF'}
+          </button>
+        </div>
+        <div style={{
+          display: 'flex', gap: '0',
+          borderRadius: '0 0 12px 12px',
+          border: '1px solid #86efac',
+          overflow: 'hidden',
+        }}>
+          <button
+            onClick={() => updateNotifyMode('all')}
+            style={{
+              flex: 1,
+              padding: '8px',
+              fontSize: '12px',
+              fontWeight: notifyMode === 'all' ? 'bold' : 'normal',
+              background: notifyMode === 'all' ? '#166534' : '#f0fdf4',
+              color: notifyMode === 'all' ? '#fff' : '#166534',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            すべての案件
+          </button>
+          <button
+            onClick={() => updateNotifyMode('mine')}
+            style={{
+              flex: 1,
+              padding: '8px',
+              fontSize: '12px',
+              fontWeight: notifyMode === 'mine' ? 'bold' : 'normal',
+              background: notifyMode === 'mine' ? '#166534' : '#f0fdf4',
+              color: notifyMode === 'mine' ? '#fff' : '#166534',
+              border: 'none',
+              borderLeft: '1px solid #86efac',
+              cursor: 'pointer',
+            }}
+          >
+            自分の案件のみ
+          </button>
+        </div>
       </div>
     );
   }

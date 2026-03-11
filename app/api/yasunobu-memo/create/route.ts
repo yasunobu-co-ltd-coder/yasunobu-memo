@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
           { title, body: notifBody, url: '/', memo_id: deal.id },
           created_by,
           deal.id,
+          deal.assignee,
         );
         console.log(
           `[push] done in ${Date.now() - t0}ms — sent=${result.sent_to_count} ok=${result.success_count} fail=${result.failure_count}`,

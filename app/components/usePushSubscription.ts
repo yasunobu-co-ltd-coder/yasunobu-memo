@@ -16,6 +16,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 export type PushPermissionState = 'prompt' | 'granted' | 'denied' | 'unsupported';
+export type NotifyMode = 'all' | 'mine';
 
 export function usePushSubscription(userId: string) {
   const [permission, setPermission] = useState<PushPermissionState>('prompt');
@@ -23,6 +24,7 @@ export function usePushSubscription(userId: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [notifyMode, setNotifyMode] = useState<NotifyMode>('all');
 
   // 初期状態チェック
   useEffect(() => {
@@ -60,7 +62,7 @@ export function usePushSubscription(userId: string) {
       if (!existing) return;
 
       try {
-        await fetch('/api/push/subscribe', {
+        const res = await fetch('/api/push/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -69,6 +71,10 @@ export function usePushSubscription(userId: string) {
           }),
         });
         setIsSubscribed(true);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.notify_mode) setNotifyMode(data.notify_mode);
+        }
       } catch (err) {
         console.error('[usePush] sync error:', err);
       }
@@ -127,6 +133,21 @@ export function usePushSubscription(userId: string) {
     }
   }, [userId]);
 
+  // 通知モード更新
+  const updateNotifyMode = useCallback(async (mode: NotifyMode) => {
+    if (!userId) return;
+    setNotifyMode(mode);
+    try {
+      await fetch('/api/push/subscribe', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, notify_mode: mode }),
+      });
+    } catch (err) {
+      console.error('[usePush] updateNotifyMode error:', err);
+    }
+  }, [userId]);
+
   // 購読解除
   const unsubscribe = useCallback(async () => {
     setIsLoading(true);
@@ -156,7 +177,9 @@ export function usePushSubscription(userId: string) {
     isLoading,
     isPwaInstalled,
     isIos,
+    notifyMode,
     subscribe,
     unsubscribe,
+    updateNotifyMode,
   };
 }
