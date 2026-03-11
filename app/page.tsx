@@ -539,6 +539,7 @@ export default function Page() {
           <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '32px' }}>PINコードを入力してください</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
             <input
+              name="pin"
               type="password"
               inputMode="numeric"
               pattern="[0-9]*"
@@ -546,6 +547,7 @@ export default function Page() {
               className="input-field"
               style={{ textAlign: 'center', fontSize: '24px', letterSpacing: '8px', width: '150px' }}
               placeholder="____"
+              autoComplete="off"
               value={pin}
               onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
               onKeyDown={e => { if (e.key === 'Enter') handlePinSubmit(); }}
@@ -568,7 +570,8 @@ export default function Page() {
   // === Login View ===
   if (!me) {
     return (
-      <div className="login-screen">
+      <div className="login-screen" style={{ position: 'relative' }}>
+        <span style={{ position: 'fixed', bottom: '8px', right: '12px', fontSize: '11px', color: '#94a3b8' }}>{APP_VERSION} ({COMMIT_SHA})</span>
         <div className="login-card">
           <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>yasunobu-memo</h1>
           <p style={{ textAlign: 'center', color: '#64748b', marginBottom: isDragging ? '16px' : '32px' }}>
@@ -636,6 +639,7 @@ export default function Page() {
             {!deleteMode && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
+                  name="newUser"
                   className="input-field"
                   value={newUserName}
                   onChange={e => setNewUserName(e.target.value)}

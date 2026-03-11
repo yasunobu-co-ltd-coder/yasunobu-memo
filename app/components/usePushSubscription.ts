@@ -149,8 +149,13 @@ export function usePushSubscription(userId: string) {
   const unsubscribe = useCallback(async () => {
     setIsLoading(true);
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      let subscription: PushSubscription | null = null;
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        subscription = await registration.pushManager.getSubscription();
+      } catch {
+        // Service Worker未対応・未登録の場合は無視
+      }
 
       if (subscription) {
         await fetch('/api/push/subscribe', {
@@ -159,6 +164,13 @@ export function usePushSubscription(userId: string) {
           body: JSON.stringify({ endpoint: subscription.endpoint }),
         });
         await subscription.unsubscribe();
+      } else {
+        // PC等でブラウザ購読が既に消えている場合、user_idでDB削除
+        await fetch('/api/push/subscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId }),
+        });
       }
 
       setIsSubscribed(false);
@@ -166,7 +178,7 @@ export function usePushSubscription(userId: string) {
       console.error('[usePush] unsubscribe error:', err);
     }
     setIsLoading(false);
-  }, []);
+  }, [userId]);
 
   return {
     permission,
