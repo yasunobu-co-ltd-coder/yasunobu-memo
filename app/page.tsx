@@ -814,6 +814,7 @@ export default function Page() {
             <div className="form-group">
               <label className="input-label">誰からの案件？ (会社名/担当者)</label>
               <input
+                name="clientName"
                 className="input-field"
                 placeholder="例: A社 山田さん"
                 value={clientName}
@@ -835,6 +836,7 @@ export default function Page() {
             <div className="form-group">
               <label className="input-label">期限</label>
               <input
+                name="dueDate"
                 type="date"
                 className="input-field"
                 value={dueDate}
@@ -845,19 +847,19 @@ export default function Page() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '20px' }}>
               <div>
                 <label className="input-label">重要度</label>
-                <select className="input-field" value={importance} onChange={e => setImportance(e.target.value as Tri)}>
+                <select name="importance" className="input-field" value={importance} onChange={e => setImportance(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
               <div>
                 <label className="input-label">急ぎ</label>
-                <select className="input-field" value={urgency} onChange={e => setUrgency(e.target.value as Tri)}>
+                <select name="urgency" className="input-field" value={urgency} onChange={e => setUrgency(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
               <div>
                 <label className="input-label">利益度</label>
-                <select className="input-field" value={profit} onChange={e => setProfit(e.target.value as Tri)}>
+                <select name="profit" className="input-field" value={profit} onChange={e => setProfit(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
@@ -895,7 +897,7 @@ export default function Page() {
               </div>
 
               {assignmentType === '任せる' && (
-                <select className="input-field" value={assignee} onChange={e => setAssignee(e.target.value)}>
+                <select name="assignee" className="input-field" value={assignee} onChange={e => setAssignee(e.target.value)}>
                   {users.filter(u => u.name !== me).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               )}
@@ -914,6 +916,7 @@ export default function Page() {
             {/* Search Bar */}
             <div style={{ marginBottom: '12px' }}>
               <input
+                name="search"
                 type="text"
                 className="input-field"
                 placeholder="🔍 検索（会社名・内容）"
@@ -945,6 +948,7 @@ export default function Page() {
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', display: 'block' }}>並び替え</label>
               <select
+                name="sortBy"
                 className="input-field"
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value as typeof sortBy)}
@@ -1033,7 +1037,7 @@ export default function Page() {
 
             <div className="form-group">
               <label className="input-label">会社名/担当者</label>
-              <input className="input-field" value={editClientName} onChange={e => setEditClientName(e.target.value)} />
+              <input name="editClientName" className="input-field" value={editClientName} onChange={e => setEditClientName(e.target.value)} />
             </div>
 
             <div className="form-group">
@@ -1043,25 +1047,25 @@ export default function Page() {
 
             <div className="form-group">
               <label className="input-label">期限</label>
-              <input type="date" className="input-field" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} />
+              <input name="editDueDate" type="date" className="input-field" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '20px' }}>
               <div>
                 <label className="input-label">重要度</label>
-                <select className="input-field" value={editImportance} onChange={e => setEditImportance(e.target.value as Tri)}>
+                <select name="editImportance" className="input-field" value={editImportance} onChange={e => setEditImportance(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
               <div>
                 <label className="input-label">急ぎ</label>
-                <select className="input-field" value={editUrgency} onChange={e => setEditUrgency(e.target.value as Tri)}>
+                <select name="editUrgency" className="input-field" value={editUrgency} onChange={e => setEditUrgency(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
               <div>
                 <label className="input-label">利益度</label>
-                <select className="input-field" value={editProfit} onChange={e => setEditProfit(e.target.value as Tri)}>
+                <select name="editProfit" className="input-field" value={editProfit} onChange={e => setEditProfit(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
