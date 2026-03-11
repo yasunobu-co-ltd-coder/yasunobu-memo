@@ -117,21 +117,25 @@ export async function PATCH(req: NextRequest) {
 
 /**
  * DELETE /api/push/subscribe
- * Push購読を無効化
+ * Push購読を削除（endpoint または user_id で削除）
  */
 export async function DELETE(req: NextRequest) {
   try {
     const body = await req.json();
-    const { endpoint } = body;
+    const { endpoint, user_id } = body;
 
-    if (!endpoint) {
-      return NextResponse.json({ error: 'Missing endpoint' }, { status: 400 });
+    if (!endpoint && !user_id) {
+      return NextResponse.json({ error: 'Missing endpoint or user_id' }, { status: 400 });
     }
 
-    const { error } = await supabaseAdmin
-      .from('push_subscriptions')
-      .delete()
-      .eq('endpoint', endpoint);
+    let query = supabaseAdmin.from('push_subscriptions').delete();
+    if (endpoint) {
+      query = query.eq('endpoint', endpoint);
+    } else {
+      query = query.eq('user_id', user_id);
+    }
+
+    const { error } = await query;
 
     if (error) {
       console.error('[unsubscribe] error:', error.message);
