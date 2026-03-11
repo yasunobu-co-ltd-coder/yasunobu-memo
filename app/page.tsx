@@ -5,6 +5,7 @@ import { Deal, Tri, AssignmentType, getDeals, updateDeal, deleteDeal } from '../
 import { User, getUsers, addUser, deleteUser, updateUserOrder } from '../lib/users';
 import { getLastChecked, updateLastChecked } from '../lib/unread';
 import { PushNotificationUI } from './components/PushNotificationUI';
+import UpdateNotice from './components/UpdateNotice';
 import { supabase } from '../lib/supabase';
 
 const APP_VERSION = 'v1.0.0';
@@ -564,6 +565,8 @@ export default function Page() {
           <p style={{ textAlign: 'center', color: '#64748b', marginBottom: isDragging ? '16px' : '32px' }}>
             {isDragging ? 'ドラッグして並び替え' : '担当者を選択して開始'}
           </p>
+
+          <UpdateNotice />
 
           <div
             style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}
