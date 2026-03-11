@@ -812,8 +812,9 @@ export default function Page() {
             </div>
 
             <div className="form-group">
-              <label className="input-label">誰からの案件？ (会社名/担当者)</label>
+              <label htmlFor="clientName" className="input-label">誰からの案件？ (会社名/担当者)</label>
               <input
+                id="clientName"
                 name="clientName"
                 className="input-field"
                 placeholder="例: A社 山田さん"
@@ -823,8 +824,9 @@ export default function Page() {
             </div>
 
             <div className="form-group">
-              <label className="input-label">内容 (メモ)</label>
+              <label htmlFor="memo" className="input-label">内容 (メモ)</label>
               <textarea
+                id="memo"
                 className="input-field"
                 rows={4}
                 placeholder="要件を入力..."
@@ -834,8 +836,9 @@ export default function Page() {
             </div>
 
             <div className="form-group">
-              <label className="input-label">期限</label>
+              <label htmlFor="dueDate" className="input-label">期限</label>
               <input
+                id="dueDate"
                 name="dueDate"
                 type="date"
                 className="input-field"
@@ -846,27 +849,27 @@ export default function Page() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '20px' }}>
               <div>
-                <label className="input-label">重要度</label>
-                <select name="importance" className="input-field" value={importance} onChange={e => setImportance(e.target.value as Tri)}>
+                <label htmlFor="importance" className="input-label">重要度</label>
+                <select id="importance" name="importance" className="input-field" value={importance} onChange={e => setImportance(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
               <div>
-                <label className="input-label">急ぎ</label>
-                <select name="urgency" className="input-field" value={urgency} onChange={e => setUrgency(e.target.value as Tri)}>
+                <label htmlFor="urgency" className="input-label">急ぎ</label>
+                <select id="urgency" name="urgency" className="input-field" value={urgency} onChange={e => setUrgency(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
               <div>
-                <label className="input-label">利益度</label>
-                <select name="profit" className="input-field" value={profit} onChange={e => setProfit(e.target.value as Tri)}>
+                <label htmlFor="profit" className="input-label">利益度</label>
+                <select id="profit" name="profit" className="input-field" value={profit} onChange={e => setProfit(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
             </div>
 
             <div className="form-group">
-              <label className="input-label">担当</label>
+              <label htmlFor="assignee" className="input-label">担当</label>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <button
                   type="button"
@@ -897,7 +900,7 @@ export default function Page() {
               </div>
 
               {assignmentType === '任せる' && (
-                <select name="assignee" className="input-field" value={assignee} onChange={e => setAssignee(e.target.value)}>
+                <select id="assignee" name="assignee" className="input-field" value={assignee} onChange={e => setAssignee(e.target.value)}>
                   {users.filter(u => u.name !== me).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               )}
@@ -946,8 +949,9 @@ export default function Page() {
 
             {/* Sort Dropdown */}
             <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', display: 'block' }}>並び替え</label>
+              <label htmlFor="sortBy" style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', display: 'block' }}>並び替え</label>
               <select
+                id="sortBy"
                 name="sortBy"
                 className="input-field"
                 value={sortBy}
@@ -1036,36 +1040,36 @@ export default function Page() {
             <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>案件編集</h2>
 
             <div className="form-group">
-              <label className="input-label">会社名/担当者</label>
-              <input name="editClientName" className="input-field" value={editClientName} onChange={e => setEditClientName(e.target.value)} />
+              <label htmlFor="editClientName" className="input-label">会社名/担当者</label>
+              <input id="editClientName" name="editClientName" className="input-field" value={editClientName} onChange={e => setEditClientName(e.target.value)} />
             </div>
 
             <div className="form-group">
-              <label className="input-label">内容</label>
-              <textarea className="input-field" rows={3} value={editMemo} onChange={e => setEditMemo(e.target.value)} />
+              <label htmlFor="editMemo" className="input-label">内容</label>
+              <textarea id="editMemo" className="input-field" rows={3} value={editMemo} onChange={e => setEditMemo(e.target.value)} />
             </div>
 
             <div className="form-group">
-              <label className="input-label">期限</label>
-              <input name="editDueDate" type="date" className="input-field" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} />
+              <label htmlFor="editDueDate" className="input-label">期限</label>
+              <input id="editDueDate" name="editDueDate" type="date" className="input-field" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '20px' }}>
               <div>
-                <label className="input-label">重要度</label>
-                <select name="editImportance" className="input-field" value={editImportance} onChange={e => setEditImportance(e.target.value as Tri)}>
+                <label htmlFor="editImportance" className="input-label">重要度</label>
+                <select id="editImportance" name="editImportance" className="input-field" value={editImportance} onChange={e => setEditImportance(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
               <div>
-                <label className="input-label">急ぎ</label>
-                <select name="editUrgency" className="input-field" value={editUrgency} onChange={e => setEditUrgency(e.target.value as Tri)}>
+                <label htmlFor="editUrgency" className="input-label">急ぎ</label>
+                <select id="editUrgency" name="editUrgency" className="input-field" value={editUrgency} onChange={e => setEditUrgency(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
               <div>
-                <label className="input-label">利益度</label>
-                <select name="editProfit" className="input-field" value={editProfit} onChange={e => setEditProfit(e.target.value as Tri)}>
+                <label htmlFor="editProfit" className="input-label">利益度</label>
+                <select id="editProfit" name="editProfit" className="input-field" value={editProfit} onChange={e => setEditProfit(e.target.value as Tri)}>
                   <option>高</option><option>中</option><option>低</option>
                 </select>
               </div>
