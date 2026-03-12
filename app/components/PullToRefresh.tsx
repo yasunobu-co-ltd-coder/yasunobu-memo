@@ -87,7 +87,8 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
     <div
       ref={containerRef}
       style={{
-        height: '100%',
+        flex: 1,
+        minHeight: 0,
         overflow: 'auto',
         overscrollBehavior: 'none',
         WebkitOverflowScrolling: 'touch',
