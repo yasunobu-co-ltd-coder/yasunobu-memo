@@ -533,8 +533,8 @@ export default function Page() {
   if (!isPinVerified) {
     return (
       <div className="login-screen">
+        <div style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>{APP_VERSION} ({COMMIT_SHA})</div>
         <div className="login-card">
-          <div style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>{APP_VERSION} ({COMMIT_SHA})</div>
           <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>yasunobu-memo</h1>
           <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '32px' }}>PINコードを入力してください</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
@@ -571,8 +571,8 @@ export default function Page() {
   if (!me) {
     return (
       <div className="login-screen" style={{ position: 'relative' }}>
+        <div style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>{APP_VERSION} ({COMMIT_SHA})</div>
         <div className="login-card">
-          <div style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>{APP_VERSION} ({COMMIT_SHA})</div>
           <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>yasunobu-memo</h1>
           <p style={{ textAlign: 'center', color: '#64748b', marginBottom: isDragging ? '16px' : '32px' }}>
             {isDragging ? 'ドラッグして並び替え' : '担当者を選択して開始'}
