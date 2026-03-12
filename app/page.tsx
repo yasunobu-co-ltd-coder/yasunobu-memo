@@ -14,8 +14,8 @@ const COMMIT_SHA = process.env.NEXT_PUBLIC_COMMIT_SHA || 'dev';
 
 const TRI_SCORE: Record<Tri, number> = { 高: 3, 中: 2, 低: 1 };
 
-// PIN認証コード
-const VALID_PIN = '0727';
+// PIN認証コード（環境変数から取得）
+const VALID_PIN = process.env.NEXT_PUBLIC_APP_PIN || '';
 
 function todayYmd() {
   const d = new Date();
