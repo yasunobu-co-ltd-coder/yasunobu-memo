@@ -869,7 +869,7 @@ export default function Page() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="assignee" className="input-label">担当</label>
+              <label className="input-label">担当</label>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <button
                   type="button"
