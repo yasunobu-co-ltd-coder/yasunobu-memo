@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { supabaseAdmin } from '../../../lib/supabase-server';
 
 export const runtime = 'nodejs';
 
@@ -30,11 +31,19 @@ export async function POST(req: NextRequest) {
         const tempFilePath = path.join(tmpdir(), `upload-${Date.now()}.webm`);
         await writeFile(tempFilePath, buffer);
 
-        // 1. Whisper APIで文字起こし
-        const transcription = await openai.audio.transcriptions.create({
-            file: fs.createReadStream(tempFilePath),
-            model: 'whisper-1',
-        });
+        // 1. Whisper文字起こし と 過去の顧客名取得を並列実行
+        const [transcription, clientNamesResult] = await Promise.all([
+            openai.audio.transcriptions.create({
+                file: fs.createReadStream(tempFilePath),
+                model: 'whisper-1',
+            }),
+            supabaseAdmin
+                .from('yasunobu-memo')
+                .select('client_name')
+                .neq('client_name', '')
+                .order('created_at', { ascending: false })
+                .limit(100),
+        ]);
 
         // 一時ファイル削除
         fs.unlinkSync(tempFilePath);
@@ -42,9 +51,19 @@ export async function POST(req: NextRequest) {
         const text = transcription.text;
         console.log('Transcribed Text:', text);
 
+        // 過去の顧客名をユニークに整理
+        const knownClients = [...new Set(
+            (clientNamesResult.data ?? [])
+                .map((r: { client_name: string }) => r.client_name)
+                .filter(Boolean)
+        )];
+        const clientListPrompt = knownClients.length > 0
+            ? `\n\n以下は過去に登録された顧客名の一覧です。音声内容がこれらに近い場合は、正確な表記に合わせてください（完全一致でなくても、発音や略称が近ければ既存の表記を優先）:\n${JSON.stringify(knownClients)}`
+            : '';
+
         // 2. GPTでJSON解析
         const completion = await openai.chat.completions.create({
-            model: 'gpt-4o', // または gpt-3.5-turbo
+            model: 'gpt-4o',
             messages: [
                 {
                     role: 'system',
@@ -63,9 +82,9 @@ export async function POST(req: NextRequest) {
               "assignmentType": "任せる" | "自分で" (デフォルト: 任せる),
               "assignee": "string (担当者名があれば)"
             }
-            
+
             今日の日付は ${new Date().toISOString().split('T')[0]} です。
-            本文(memo)は、ただの書き起こしではなく、要点をまとめた見やすい形式にしてください。
+            本文(memo)は、ただの書き起こしではなく、要点をまとめた見やすい形式にしてください。${clientListPrompt}
           `
                 },
                 { role: 'user', content: text }
