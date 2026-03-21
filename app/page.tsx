@@ -9,7 +9,7 @@ import UpdateNotice from './components/UpdateNotice';
 import { PullToRefresh } from './components/PullToRefresh';
 import { supabase } from '../lib/supabase';
 import { markAsRead, getReadsForMemos } from '../lib/reads';
-import { HelpCircle, LogOut, BookMarked } from 'lucide-react';
+import { HelpCircle, LogOut, BookMarked, Bell, CalendarDays } from 'lucide-react';
 
 const APP_VERSION = 'v1.0.0';
 const COMMIT_SHA = process.env.NEXT_PUBLIC_COMMIT_SHA || 'dev';
@@ -899,11 +899,11 @@ export default function Page() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div className="brand">memo <span style={{ fontSize: '10px', opacity: 0.7 }}>v1.1</span></div>
           <button onClick={openNotif} className="notif-bell">
-            🔔
+            <Bell className="w-5 h-5" />
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
           </button>
           <button onClick={() => { setShowCalendar(true); setSelectedDate(null); }} className="notif-bell">
-            📅
+            <CalendarDays className="w-5 h-5" />
           </button>
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -1425,7 +1425,7 @@ export default function Page() {
               { q: '完了にしたメモを元に戻したい', a: '下部の「完了」タブを開き、該当カードの「戻す」ボタンを押すと未着手に戻ります。' },
               { q: '通知が届かない', a: 'ヘッダー下の「プッシュ通知」をONにしてください。ブラウザの通知許可も必要です。端末の設定 > 通知 でブラウザアプリの通知が許可されているか確認してください。' },
               { q: '通知が多すぎる', a: '通知設定で「自分の案件のみ」に切り替えると、自分が担当者または作成者の案件だけ通知されます。' },
-              { q: '期限切れの案件を確認したい', a: 'フィルタの「期限切れ」ボタンを押すと、期限を過ぎた未完了の案件だけ表示されます。カレンダーボタン（📅）でも日付ごとに確認できます。' },
+              { q: '期限切れの案件を確認したい', a: 'フィルタの「期限切れ」ボタンを押すと、期限を過ぎた未完了の案件だけ表示されます。カレンダーボタンでも日付ごとに確認できます。' },
               { q: '音声入力がうまくいかない', a: 'マイクの使用をブラウザに許可してください。静かな環境で、はっきりと話すと認識精度が上がります。顧客名は過去の登録データから自動で補正されます。' },
               { q: 'ユーザーを切り替えたい', a: 'ヘッダー右上の「切替」ボタンを押すと担当者選択画面に戻ります。' },
               { q: 'ユーザーを削除したい', a: '担当者選択画面の「ユーザーを削除」ボタンで削除モードに入ります。関連データが残っている場合は先にデータを整理してください。' },
@@ -1450,9 +1450,81 @@ export default function Page() {
               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ルルブ</h2>
               <button onClick={() => setShowRulebook(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
             </div>
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' }}>
-              準備中...
+            {/* 最重要ルール */}
+            <div style={{ background: '#fef2f2', border: '2px solid #ef4444', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <span style={{ background: '#ef4444', color: '#fff', fontSize: '11px', fontWeight: '800', padding: '3px 10px', borderRadius: '99px' }}>最重要</span>
+                <span style={{ fontSize: '15px', fontWeight: '800', color: '#dc2626' }}>顧客名の入力ルール</span>
+              </div>
+              <p style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.8', margin: '0 0 10px' }}>
+                「誰からの案件？」欄は、必ず<b>顧客名を先頭</b>に書き、スペースまたはスラッシュ（/）で区切ってから案件内容を入力してください。
+              </p>
+              <div style={{ background: '#fff', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#334155', lineHeight: '1.8' }}>
+                <div style={{ fontWeight: '700', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>入力例</div>
+                <div>○ <b>A社 見積もり依頼</b></div>
+                <div>○ <b>B工業/発注書作成</b></div>
+                <div>○ <b>C商事 説明会の件</b></div>
+                <div style={{ marginTop: '6px', color: '#ef4444' }}>× 見積もり依頼（A社）← 顧客名が先頭にない</div>
+                <div style={{ color: '#ef4444' }}>× 見積もり依頼 ← 顧客名がない</div>
+                <div style={{ color: '#ef4444' }}>× A社 ← 案件内容がない</div>
+                <div style={{ color: '#ef4444' }}>× 説明会についてA社と打合せ ← 顧客名が埋もれている</div>
+              </div>
+              <p style={{ fontSize: '12px', color: '#dc2626', fontWeight: '700', margin: '10px 0 0', lineHeight: '1.6' }}>
+                ※ ナレッジデータベースで顧客別に案件を集約するため、このルールは必ず守ってください。
+              </p>
             </div>
+
+            {/* 運用ルール */}
+            <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#334155', marginBottom: '10px' }}>運用ルール</h3>
+
+            {[
+              {
+                title: '担当者を確認してから操作する',
+                desc: 'ヘッダー右上に表示されている名前が自分であることを必ず確認してください。別の人の名前のまま操作すると、通知や担当が全て間違った相手に紐づきます。',
+                level: '重要',
+              },
+              {
+                title: '他人のメモを勝手に完了・削除しない',
+                desc: '一覧で「全件」表示にすると他の人の案件も操作できます。自分の担当以外のメモのステータス変更や削除は、必ず本人に確認してから行ってください。',
+                level: '重要',
+              },
+              {
+                title: '削除は取り消せません',
+                desc: '完了タブから「削除」を押すとデータベースから完全に消えます。記録を残したい場合は「完了」のままにしておいてください。',
+                level: '注意',
+              },
+              {
+                title: '「任せる」の相手をよく確認する',
+                desc: '案件を誰かに任せるとき、ドロップダウンで正しい相手を選んでいるか確認してください。登録と同時にPush通知が届きます。',
+                level: '注意',
+              },
+              {
+                title: '期限の初期値は「今日」です',
+                desc: '新規登録時、期限はデフォルトで今日の日付が入っています。実際の期限に変更し忘れると、即座に期限切れ扱いになります。',
+                level: '注意',
+              },
+              {
+                title: 'Push通知をONにする',
+                desc: '新しい端末やブラウザで初めて開いたとき、ヘッダー下の「プッシュ通知」を必ずONにしてください。OFFのままだと案件を振られても気づけません。',
+                level: '推奨',
+              },
+              {
+                title: 'データは自動更新されません',
+                desc: '他の人の操作はリアルタイムで反映されません。最新情報を確認したいときは画面を下に引っ張って更新（Pull to Refresh）してください。',
+                level: '推奨',
+              },
+            ].map((rule, i) => (
+              <div key={i} style={{ marginBottom: '10px', padding: '12px 14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span style={{
+                    fontSize: '10px', fontWeight: '800', padding: '2px 8px', borderRadius: '99px', color: '#fff',
+                    background: rule.level === '重要' ? '#f59e0b' : rule.level === '注意' ? '#6366f1' : '#10b981',
+                  }}>{rule.level}</span>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>{rule.title}</span>
+                </div>
+                <div style={{ fontSize: '12px', color: '#475569', lineHeight: '1.6' }}>{rule.desc}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
