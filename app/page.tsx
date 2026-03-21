@@ -9,6 +9,7 @@ import UpdateNotice from './components/UpdateNotice';
 import { PullToRefresh } from './components/PullToRefresh';
 import { supabase } from '../lib/supabase';
 import { markAsRead, getReadsForMemos } from '../lib/reads';
+import { HelpCircle, LogOut, BookMarked } from 'lucide-react';
 
 const APP_VERSION = 'v1.0.0';
 const COMMIT_SHA = process.env.NEXT_PUBLIC_COMMIT_SHA || 'dev';
@@ -116,6 +117,9 @@ export default function Page() {
 
   // Help
   const [showHelp, setShowHelp] = useState(false);
+
+  // Rulebook (ルルブ)
+  const [showRulebook, setShowRulebook] = useState(false);
 
   // Reads (既読)
   const [memoReads, setMemoReads] = useState<Record<string, { user_id: string; user_name: string }[]>>({});
@@ -893,7 +897,7 @@ export default function Page() {
       {/* Header */}
       <header className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div className="brand">yasunobu-memo <span style={{ fontSize: '10px', opacity: 0.7 }}>v1.1</span></div>
+          <div className="brand">memo <span style={{ fontSize: '10px', opacity: 0.7 }}>v1.1</span></div>
           <button onClick={openNotif} className="notif-bell">
             🔔
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
@@ -903,9 +907,10 @@ export default function Page() {
           </button>
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button onClick={() => setShowHelp(true)} style={{ background: 'none', border: '1.5px solid #94a3b8', borderRadius: '50%', width: '28px', height: '28px', fontSize: '14px', fontWeight: '700', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>?</button>
+          <button onClick={() => setShowRulebook(true)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><BookMarked className="w-5 h-5" /></button>
+          <button onClick={() => setShowHelp(true)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><HelpCircle className="w-5 h-5" /></button>
           <span className="user-badge">{me}</span>
-          <button onClick={logout} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', fontWeight: '600', color: '#64748b', cursor: 'pointer' }}>切替</button>
+          <button onClick={logout} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><LogOut className="w-[16px] h-[16px]" /></button>
         </div>
       </header>
 
@@ -1433,6 +1438,21 @@ export default function Page() {
                 <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.6' }}>A. {item.a}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Rulebook Modal (ルルブ) */}
+      {showRulebook && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px' }}>
+          <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: '85vh', overflowY: 'auto', marginTop: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ルルブ</h2>
+              <button onClick={() => setShowRulebook(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
+            </div>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '14px' }}>
+              準備中...
+            </div>
           </div>
         </div>
       )}
