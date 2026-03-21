@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const { data: tomorrowDeals } = await supabaseAdmin
       .from('yasunobu-memo')
       .select('id, client_name, memo, due_date, assignee, assignee_user:users!assignee(name)')
-      .eq('status', 'open')
+      .in('status', ['open', '未着手', '対応中'])
       .eq('due_date', tomorrow);
 
     if (tomorrowDeals && tomorrowDeals.length > 0) {
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     const { data: overdueDeals } = await supabaseAdmin
       .from('yasunobu-memo')
       .select('id, client_name, memo, due_date, assignee, assignee_user:users!assignee(name)')
-      .eq('status', 'open')
+      .in('status', ['open', '未着手', '対応中'])
       .eq('due_date', yesterday);
 
     if (overdueDeals && overdueDeals.length > 0) {

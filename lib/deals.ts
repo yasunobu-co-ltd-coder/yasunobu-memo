@@ -16,7 +16,7 @@ export type Deal = {
   urgency: Tri;
   assignment_type: AssignmentType;
   assignee: string;          // UUID
-  status: 'open' | 'done';
+  status: 'open' | '未着手' | '対応中' | 'done';
   image_url?: string;
   // JOIN結果
   created_user?: { name: string } | null;

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './supabase-server';
 
 export interface UserReferenceCounts {
+  pocket_yasunobu: number;
   memo_created: number;
   memo_assigned: number;
   memo_unread: number;
@@ -16,12 +17,17 @@ export async function getUserReferenceCounts(userId: string): Promise<{
   canDelete: boolean;
 }> {
   const [
+    pocketYasunobu,
     memoCreated,
     memoAssigned,
     memoUnread,
     pushSubs,
     notifTriggered,
   ] = await Promise.all([
+    supabaseAdmin
+      .from('pocket-yasunobu')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId),
     supabaseAdmin
       .from('yasunobu-memo')
       .select('*', { count: 'exact', head: true })
@@ -45,6 +51,7 @@ export async function getUserReferenceCounts(userId: string): Promise<{
   ]);
 
   const counts: UserReferenceCounts = {
+    pocket_yasunobu: pocketYasunobu.count ?? 0,
     memo_created: memoCreated.count ?? 0,
     memo_assigned: memoAssigned.count ?? 0,
     memo_unread: memoUnread.count ?? 0,

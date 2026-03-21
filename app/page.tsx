@@ -8,6 +8,7 @@ import { PushNotificationUI } from './components/PushNotificationUI';
 import UpdateNotice from './components/UpdateNotice';
 import { PullToRefresh } from './components/PullToRefresh';
 import { supabase } from '../lib/supabase';
+import { markAsRead, getReadsForMemos } from '../lib/reads';
 
 const APP_VERSION = 'v1.0.0';
 const COMMIT_SHA = process.env.NEXT_PUBLIC_COMMIT_SHA || 'dev';
@@ -29,6 +30,27 @@ function fmtDate(ymd: string) {
   if (!ymd) return '—';
   const [, m, d] = ymd.split('-');
   return `${m}/${d}`;
+}
+
+// Legacy 'open' → '未着手' mapping
+function normalizeStatus(status: string): '未着手' | '対応中' | 'done' {
+  if (status === 'done') return 'done';
+  if (status === '対応中') return '対応中';
+  return '未着手'; // 'open' or '未着手' or anything else
+}
+
+function statusLabel(status: string): string {
+  const s = normalizeStatus(status);
+  if (s === 'done') return '完了';
+  if (s === '対応中') return '対応中';
+  return '未着手';
+}
+
+function statusColor(status: string): string {
+  const s = normalizeStatus(status);
+  if (s === 'done') return '#10b981';
+  if (s === '対応中') return '#f59e0b';
+  return '#94a3b8';
 }
 
 export default function Page() {
@@ -86,6 +108,17 @@ export default function Page() {
   const [editImportance, setEditImportance] = useState<Tri>('中');
   const [editProfit, setEditProfit] = useState<Tri>('中');
   const [editUrgency, setEditUrgency] = useState<Tri>('中');
+  const [editAssignmentType, setEditAssignmentType] = useState<AssignmentType>('自分で');
+  const [editAssignee, setEditAssignee] = useState<string>('');
+
+  // Dashboard
+  const [showDashboard, setShowDashboard] = useState(false);
+
+  // Help
+  const [showHelp, setShowHelp] = useState(false);
+
+  // Reads (既読)
+  const [memoReads, setMemoReads] = useState<Record<string, { user_id: string; user_name: string }[]>>({});
 
   // Notifications
   const [showNotif, setShowNotif] = useState(false);
@@ -146,6 +179,26 @@ export default function Page() {
       console.log(`[perf] initial load: ${(performance.now() - t0).toFixed(0)}ms`);
     });
   }, [isPinVerified, loadUsers, loadDeals]);
+
+  // Load reads when deals change
+  useEffect(() => {
+    if (deals.length === 0) return;
+    const ids = deals.map(d => d.id);
+    getReadsForMemos(ids).then(setMemoReads);
+  }, [deals]);
+
+  // Mark deals as read when user views the list
+  const markedReadRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!meId || deals.length === 0 || tab !== 'list') return;
+    const unread = deals.filter(d => normalizeStatus(d.status) !== 'done' && !markedReadRef.current.has(d.id) && !(memoReads[d.id]?.some(r => r.user_id === meId)));
+    if (unread.length > 0) {
+      unread.forEach(d => markedReadRef.current.add(d.id));
+      Promise.all(unread.map(d => markAsRead(d.id, meId))).then(() => {
+        getReadsForMemos(deals.map(d => d.id)).then(setMemoReads);
+      });
+    }
+  }, [meId, deals, tab, memoReads]);
 
   // Pull to Refresh
   const handleRefresh = useCallback(async () => {
@@ -317,7 +370,7 @@ export default function Page() {
       urgency,
       assignment_type: assignmentType,
       assignee: assignmentType === '自分で' ? meUser.id : (assignee || meUser.id),
-      status: 'open',
+      status: '未着手',
     };
 
     try {
@@ -357,7 +410,7 @@ export default function Page() {
 
   // Restore
   const restore = async (id: string) => {
-    const updated = await updateDeal(id, { status: 'open' });
+    const updated = await updateDeal(id, { status: '未着手' });
     if (updated) {
       setDeals(deals.map(d => d.id === id ? updated : d));
     }
@@ -381,11 +434,14 @@ export default function Page() {
     setEditImportance(deal.importance);
     setEditProfit(deal.profit);
     setEditUrgency(deal.urgency);
+    setEditAssignmentType(deal.assignment_type);
+    setEditAssignee(deal.assignee);
   };
 
   // Save edit
   const saveEdit = async () => {
     if (!editingDeal) return;
+    const meUser = users.find(u => u.name === me);
     const updated = await updateDeal(editingDeal.id, {
       client_name: editClientName,
       memo: editMemo,
@@ -393,6 +449,8 @@ export default function Page() {
       importance: editImportance,
       profit: editProfit,
       urgency: editUrgency,
+      assignment_type: editAssignmentType,
+      assignee: editAssignmentType === '自分で' ? (meUser?.id || editingDeal.assignee) : (editAssignee || editingDeal.assignee),
     });
     if (updated) {
       setDeals(deals.map(d => d.id === editingDeal.id ? updated : d));
@@ -507,7 +565,7 @@ export default function Page() {
   // Filter Logic
   const filtered = useMemo(() => {
     const now = todayYmd();
-    let list = deals.filter(d => tab === 'done' ? d.status === 'done' : d.status === 'open');
+    let list = deals.filter(d => tab === 'done' ? normalizeStatus(d.status) === 'done' : normalizeStatus(d.status) !== 'done');
 
     if (query) {
       list = list.filter(d => (d.client_name || '').includes(query) || (d.memo || '').includes(query));
@@ -571,6 +629,12 @@ export default function Page() {
   if (!me) {
     return (
       <div className="login-screen" style={{ position: 'relative' }}>
+        <button
+          onClick={() => setShowDashboard(true)}
+          style={{ display: 'block', margin: '0 auto 12px', background: '#2563eb', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '12px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}
+        >
+          ダッシュボード
+        </button>
         <div style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>{APP_VERSION} ({COMMIT_SHA})</div>
         <div className="login-card">
           <h1 className="brand" style={{ textAlign: 'center', fontSize: '24px', marginBottom: '8px' }}>yasunobu-memo</h1>
@@ -664,6 +728,70 @@ export default function Page() {
           </div>
         </div>
 
+        {/* ダッシュボードモーダル */}
+        {showDashboard && (() => {
+          const openDeals = deals.filter(d => normalizeStatus(d.status) !== 'done');
+          const doneDeals = deals.filter(d => normalizeStatus(d.status) === 'done');
+          const overdueDeals = openDeals.filter(d => d.due_date < todayYmd());
+          const perUser: Record<string, { name: string; total: number; miChakushu: number; taiouChuu: number; done: number; overdue: number }> = {};
+          users.forEach(u => { perUser[u.id] = { name: u.name, total: 0, miChakushu: 0, taiouChuu: 0, done: 0, overdue: 0 }; });
+          deals.forEach(d => {
+            if (!perUser[d.assignee]) return;
+            perUser[d.assignee].total++;
+            const s = normalizeStatus(d.status);
+            if (s === '未着手') perUser[d.assignee].miChakushu++;
+            else if (s === '対応中') perUser[d.assignee].taiouChuu++;
+            else perUser[d.assignee].done++;
+            if (s !== 'done' && d.due_date < todayYmd()) perUser[d.assignee].overdue++;
+          });
+          return (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px' }}>
+              <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: '85vh', overflowY: 'auto', marginTop: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ダッシュボード</h2>
+                  <button onClick={() => setShowDashboard(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
+                </div>
+
+                {/* Summary Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+                  <div style={{ background: '#eff6ff', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#2563eb' }}>{openDeals.length}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>未完了</div>
+                  </div>
+                  <div style={{ background: '#fef3c7', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#d97706' }}>{overdueDeals.length}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>期限切れ</div>
+                  </div>
+                  <div style={{ background: '#ecfdf5', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#10b981' }}>{doneDeals.length}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>完了</div>
+                  </div>
+                </div>
+
+                {/* Per-user stats */}
+                <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#475569', marginBottom: '10px' }}>担当者別</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {users.map(u => {
+                    const s = perUser[u.id];
+                    if (!s) return null;
+                    return (
+                      <div key={u.id} style={{ background: '#f8fafc', borderRadius: '12px', padding: '12px 14px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontWeight: '700', fontSize: '14px', marginBottom: '6px', color: '#1e293b' }}>{s.name}</div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '12px' }}>
+                          <span style={{ color: '#94a3b8' }}>未着手: <b>{s.miChakushu}</b></span>
+                          <span style={{ color: '#d97706' }}>対応中: <b>{s.taiouChuu}</b></span>
+                          <span style={{ color: '#10b981' }}>完了: <b>{s.done}</b></span>
+                          {s.overdue > 0 && <span style={{ color: '#ef4444' }}>期限切れ: <b>{s.overdue}</b></span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* 削除確認モーダル */}
         {deleteTarget && (
           <div style={{
@@ -693,6 +821,7 @@ export default function Page() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px', fontSize: '14px' }}>
                     <tbody>
                       {[
+                        ['案件（ポケット）', deleteRefs.counts.pocket_yasunobu],
                         ['メモ（作成）', deleteRefs.counts.memo_created],
                         ['メモ（担当）', deleteRefs.counts.memo_assigned],
                         ['未読', deleteRefs.counts.memo_unread],
@@ -773,8 +902,10 @@ export default function Page() {
             📅
           </button>
         </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <span className="user-badge" onClick={logout}>{me}</span>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button onClick={() => setShowHelp(true)} style={{ background: 'none', border: '1.5px solid #94a3b8', borderRadius: '50%', width: '28px', height: '28px', fontSize: '14px', fontWeight: '700', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>?</button>
+          <span className="user-badge">{me}</span>
+          <button onClick={logout} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', fontWeight: '600', color: '#64748b', cursor: 'pointer' }}>切替</button>
         </div>
       </header>
 
@@ -974,9 +1105,14 @@ export default function Page() {
             ) : (
               filtered.map(d => (
                 <div key={d.id} className="deal-card">
-                  <span className="due-badge" style={{ color: d.due_date < todayYmd() && d.status === 'open' ? '#ef4444' : '#64748b' }}>
-                    期限: {fmtDate(d.due_date)}
-                  </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className="due-badge" style={{ color: d.due_date < todayYmd() && normalizeStatus(d.status) !== 'done' ? '#ef4444' : '#64748b' }}>
+                      期限: {fmtDate(d.due_date)}
+                    </span>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: statusColor(d.status), background: statusColor(d.status) + '18', padding: '2px 10px', borderRadius: '99px' }}>
+                      {statusLabel(d.status)}
+                    </span>
+                  </div>
 
                   <div className="client-name">{d.client_name || '(相手不明)'}</div>
 
@@ -988,26 +1124,50 @@ export default function Page() {
 
                   <div className="memo-text">{d.memo}</div>
 
+                  {memoReads[d.id] && memoReads[d.id].length > 0 && (
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px' }}>
+                      既読: {memoReads[d.id].map(r => r.user_name).join(', ')}
+                    </div>
+                  )}
+
                   <div className="assignee-row">
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.assignee === meId ? '#3b82f6' : '#cbd5e1' }} />
                       {d.assignee_user?.name ?? '(不明)'}
                     </span>
 
-                    {d.status === 'open' ? (
+                    {normalizeStatus(d.status) !== 'done' ? (
                       <>
-                        <button
-                          onClick={() => startEdit(d)}
-                          style={{ background: '#f1f5f9', color: '#64748b', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', marginRight: '8px' }}
-                        >
-                          編集
-                        </button>
-                        <button
-                          onClick={() => markDone(d.id)}
-                          style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                        >
-                          完了する
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => startEdit(d)}
+                            style={{ background: '#f1f5f9', color: '#64748b', border: 'none', padding: '6px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                          >
+                            編集
+                          </button>
+                          {normalizeStatus(d.status) === '未着手' && (
+                            <button
+                              onClick={async () => { const u = await updateDeal(d.id, { status: '対応中' }); if (u) setDeals(deals.map(x => x.id === d.id ? u : x)); }}
+                              style={{ background: '#fef3c7', color: '#d97706', border: 'none', padding: '6px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                            >
+                              対応中
+                            </button>
+                          )}
+                          {normalizeStatus(d.status) === '対応中' && (
+                            <button
+                              onClick={async () => { const u = await updateDeal(d.id, { status: '未着手' }); if (u) setDeals(deals.map(x => x.id === d.id ? u : x)); }}
+                              style={{ background: '#f1f5f9', color: '#64748b', border: 'none', padding: '6px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                            >
+                              未着手に戻す
+                            </button>
+                          )}
+                          <button
+                            onClick={() => markDone(d.id)}
+                            style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                          >
+                            完了
+                          </button>
+                        </div>
                       </>
                     ) : (
                       <div style={{ display: 'flex', gap: '8px' }}>
@@ -1075,6 +1235,19 @@ export default function Page() {
               </div>
             </div>
 
+            <div className="form-group">
+              <label className="input-label">担当</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <button type="button" className="glass-panel" style={{ padding: '8px 16px', borderRadius: '99px', cursor: 'pointer', background: editAssignmentType === '自分で' ? '#e0f2fe' : 'transparent', color: editAssignmentType === '自分で' ? '#0284c7' : '#64748b', borderColor: editAssignmentType === '自分で' ? '#0284c7' : '#e2e8f0' }} onClick={() => setEditAssignmentType('自分で')}>自分でやる</button>
+                <button type="button" className="glass-panel" style={{ padding: '8px 16px', borderRadius: '99px', cursor: 'pointer', background: editAssignmentType === '任せる' ? '#e0f2fe' : 'transparent', color: editAssignmentType === '任せる' ? '#0284c7' : '#64748b', borderColor: editAssignmentType === '任せる' ? '#0284c7' : '#e2e8f0' }} onClick={() => setEditAssignmentType('任せる')}>誰かに任せる</button>
+              </div>
+              {editAssignmentType === '任せる' && (
+                <select className="input-field" value={editAssignee} onChange={e => setEditAssignee(e.target.value)}>
+                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              )}
+            </div>
+
             <div style={{ display: 'flex', gap: '12px' }}>
               <button onClick={cancelEdit} style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}>
                 キャンセル
@@ -1107,7 +1280,7 @@ export default function Page() {
                   <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>{d.memo}</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '12px', color: d.due_date < todayYmd() ? '#ef4444' : '#64748b' }}>期限: {fmtDate(d.due_date)}</span>
-                    <span className={`tag ${d.status === 'done' ? 'tag-lo' : 'tag-mid'}`} style={{ fontSize: '11px' }}>{d.status === 'done' ? '完了' : '対応中'}</span>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: statusColor(d.status), background: statusColor(d.status) + '18', padding: '2px 8px', borderRadius: '99px' }}>{statusLabel(d.status)}</span>
                   </div>
                 </div>
               ))
@@ -1126,7 +1299,7 @@ export default function Page() {
         for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
         // Build a map of due_date -> deals (open only, filtered)
-        const calDeals = deals.filter(d => d.status === 'open' && (calFilter === '全件' || d.assignee === meId));
+        const calDeals = deals.filter(d => normalizeStatus(d.status) !== 'done' && (calFilter === '全件' || d.assignee === meId));
         const dueDateMap: Record<string, Deal[]> = {};
         calDeals.forEach(d => {
           if (!d.due_date) return;
@@ -1231,6 +1404,38 @@ export default function Page() {
       })()}
 
       </PullToRefresh>
+
+      {/* Help Modal */}
+      {showHelp && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px' }}>
+          <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: '85vh', overflowY: 'auto', marginTop: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ヘルプ</h2>
+              <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
+            </div>
+
+            {[
+              { q: '担当者を間違えて登録してしまった', a: 'カード右下の「編集」ボタンから担当者を変更できます。「自分でやる」「誰かに任せる」を切り替えて保存してください。' },
+              { q: 'メモが見つからない', a: '検索バーにキーワードを入力すると、会社名・メモ内容で絞り込めます。フィルタを「全件」に切り替えると他の人の案件も表示されます。' },
+              { q: '完了にしたメモを元に戻したい', a: '下部の「完了」タブを開き、該当カードの「戻す」ボタンを押すと未着手に戻ります。' },
+              { q: '通知が届かない', a: 'ヘッダー下の「プッシュ通知」をONにしてください。ブラウザの通知許可も必要です。端末の設定 > 通知 でブラウザアプリの通知が許可されているか確認してください。' },
+              { q: '通知が多すぎる', a: '通知設定で「自分の案件のみ」に切り替えると、自分が担当者または作成者の案件だけ通知されます。' },
+              { q: '期限切れの案件を確認したい', a: 'フィルタの「期限切れ」ボタンを押すと、期限を過ぎた未完了の案件だけ表示されます。カレンダーボタン（📅）でも日付ごとに確認できます。' },
+              { q: '音声入力がうまくいかない', a: 'マイクの使用をブラウザに許可してください。静かな環境で、はっきりと話すと認識精度が上がります。顧客名は過去の登録データから自動で補正されます。' },
+              { q: 'ユーザーを切り替えたい', a: 'ヘッダー右上の「切替」ボタンを押すと担当者選択画面に戻ります。' },
+              { q: 'ユーザーを削除したい', a: '担当者選択画面の「ユーザーを削除」ボタンで削除モードに入ります。関連データが残っている場合は先にデータを整理してください。' },
+              { q: 'アプリが固まった・表示がおかしい', a: '画面を下に引っ張って離すとデータが再読み込みされます（Pull to Refresh）。それでも直らない場合はブラウザを再起動してください。' },
+              { q: 'ステータスの使い分けは？', a: '「未着手」= まだ手をつけていない案件、「対応中」= 作業を始めた案件、「完了」= 対応が終わった案件。カードのボタンでワンタップで切り替えできます。' },
+              { q: 'ダッシュボードはどこ？', a: '担当者選択画面（ログイン画面）の一番上にある「ダッシュボード」ボタンから開けます。全体の状況と担当者別の件数が確認できます。' },
+            ].map((item, i) => (
+              <div key={i} style={{ marginBottom: '14px', padding: '12px 14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', marginBottom: '6px' }}>Q. {item.q}</div>
+                <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.6' }}>A. {item.a}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation */}
       <nav className="bottom-nav">
