@@ -29,8 +29,8 @@ export async function getReadsForMemos(memoIds: string[]): Promise<Record<string
     for (const row of data) {
       const memoId = row.memo_id as string;
       if (!result[memoId]) result[memoId] = [];
-      const userArr = row.user as unknown as { name: string }[] | null;
-      const userName = userArr?.[0]?.name ?? '?';
+      const userRaw = row.user as unknown;
+      const userName = Array.isArray(userRaw) ? (userRaw[0]?.name ?? '?') : ((userRaw as { name: string } | null)?.name ?? '?');
       result[memoId].push({ user_id: row.user_id as string, user_name: userName });
     }
   }
