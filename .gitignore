@@ -2,6 +2,7 @@
 
 # SQL migration files (local only, never commit)
 /supabase
+/sql
 
 # dependencies
 /node_modules
