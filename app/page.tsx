@@ -896,7 +896,7 @@ export default function Page() {
     <div className="wrap">
       {/* Header */}
       <header className="topbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div className="brand">memo <span style={{ fontSize: '10px', opacity: 0.7 }}>v1.1</span></div>
           <button onClick={openNotif} className="notif-bell">
             <Bell className="w-5 h-5" />
