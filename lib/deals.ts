@@ -49,40 +49,32 @@ export async function getDeals(): Promise<Deal[]> {
   }
 }
 
-// UPDATE: 案件を更新（ステータス変更など）
+// UPDATE: 案件を更新（ステータス変更など）— API route経由
 export async function updateDeal(id: string, updates: Partial<Deal>): Promise<Deal | null> {
   try {
-    const { data, error } = await supabase
-      .from('yasunobu-memo')
-      .update(updates)
-      .eq('id', id)
-      .select(DEAL_SELECT)
-      .single();
-
-    if (error) {
-      console.error('Error updating deal:', error);
-      return null;
-    }
-    return data as unknown as Deal;
+    const res = await fetch('/api/yasunobu-memo/update', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, updates }),
+    });
+    if (!res.ok) return null;
+    const { deal } = await res.json();
+    return deal as Deal;
   } catch (e) {
     console.error('Exception updating deal:', e);
     return null;
   }
 }
 
-// DELETE: 案件を削除
+// DELETE: 案件を削除 — API route経由
 export async function deleteDeal(id: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('yasunobu-memo')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting deal:', error);
-      return false;
-    }
-    return true;
+    const res = await fetch('/api/yasunobu-memo/delete', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    return res.ok;
   } catch (e) {
     console.error('Exception deleting deal:', e);
     return false;

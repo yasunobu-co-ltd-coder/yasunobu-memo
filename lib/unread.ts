@@ -20,15 +20,14 @@ export async function getLastChecked(userId: string): Promise<string | null> {
   }
 }
 
-// 通知の最終確認時刻を更新（upsert）
+// 通知の最終確認時刻を更新 — API route経由
 export async function updateLastChecked(userId: string): Promise<void> {
   try {
-    await supabase
-      .from('yasunobu-memo-unread')
-      .upsert(
-        { user_id: userId, last_checked_at: new Date().toISOString() },
-        { onConflict: 'user_id' }
-      );
+    await fetch('/api/unread/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId }),
+    });
   } catch (e) {
     console.error('Exception updating last_checked:', e);
   }

@@ -28,51 +28,45 @@ export async function getUsers(): Promise<User[]> {
   }
 }
 
-// ユーザーを追加（末尾に配置）
+// ユーザーを追加（末尾に配置）— API route経由
 export async function addUser(name: string, sortOrder?: number): Promise<User | null> {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .insert([{ name, sort_order: sortOrder ?? 9999 }])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error adding user:', error.message);
-      return null;
-    }
-    return data;
+    const res = await fetch('/api/users/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, sort_order: sortOrder }),
+    });
+    if (!res.ok) return null;
+    const { user } = await res.json();
+    return user as User;
   } catch (e) {
     console.error('Exception adding user:', e);
     return null;
   }
 }
 
-// ユーザーの並び順を更新
+// ユーザーの並び順を更新 — API route経由
 export async function updateUserOrder(id: string, sortOrder: number): Promise<void> {
   try {
-    await supabase
-      .from('users')
-      .update({ sort_order: sortOrder })
-      .eq('id', id);
+    await fetch('/api/users/update-order', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, sort_order: sortOrder }),
+    });
   } catch (e) {
     console.error('Exception updating sort_order:', e);
   }
 }
 
-// ユーザーを削除
+// ユーザーを削除 — API route経由
 export async function deleteUser(id: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting user:', error.message);
-      return false;
-    }
-    return true;
+    const res = await fetch('/api/users/delete', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    return res.ok;
   } catch (e) {
     console.error('Exception deleting user:', e);
     return false;

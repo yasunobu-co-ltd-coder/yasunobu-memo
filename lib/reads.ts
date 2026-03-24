@@ -8,11 +8,17 @@ export type MemoRead = {
   user_name?: string;
 };
 
-// Record that a user has read a memo (upsert - ignore if already exists)
+// Record that a user has read a memo — API route経由
 export async function markAsRead(memoId: string, userId: string): Promise<void> {
-  await supabase
-    .from(TABLE)
-    .upsert({ memo_id: memoId, user_id: userId }, { onConflict: 'memo_id,user_id' });
+  try {
+    await fetch('/api/reads/mark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memo_id: memoId, user_id: userId }),
+    });
+  } catch (e) {
+    console.error('Exception marking as read:', e);
+  }
 }
 
 // Get all reads for multiple memos (batch)
