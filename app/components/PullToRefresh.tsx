@@ -16,6 +16,7 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isPulling = useRef(false);
+  const scrolledAway = useRef(false);
 
   const isAtTop = useCallback(() => {
     const el = containerRef.current;
@@ -25,30 +26,49 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (isRefreshing) return;
+    scrolledAway.current = false;
     if (isAtTop()) {
       startY.current = e.touches[0].clientY;
       isPulling.current = true;
+    } else {
+      isPulling.current = false;
     }
   }, [isRefreshing, isAtTop]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!isPulling.current || isRefreshing) return;
+
+    // If we scrolled away from top during this gesture, abort pull
+    if (!isAtTop()) {
+      scrolledAway.current = true;
+      isPulling.current = false;
+      setPullDistance(0);
+      return;
+    }
+
+    if (scrolledAway.current) return;
+
     const currentY = e.touches[0].clientY;
     const diff = currentY - startY.current;
 
-    if (diff > 0 && isAtTop()) {
+    if (diff > 0) {
       const distance = Math.min(diff * 0.5, MAX_PULL);
-      setPullDistance(distance);
       if (distance > 10) {
         e.preventDefault();
+        setPullDistance(distance);
       }
     } else {
+      // User is trying to scroll down — let native scroll handle it
+      isPulling.current = false;
       setPullDistance(0);
     }
   }, [isRefreshing, isAtTop]);
 
   const handleTouchEnd = useCallback(async () => {
-    if (!isPulling.current) return;
+    if (!isPulling.current) {
+      setPullDistance(0);
+      return;
+    }
     isPulling.current = false;
 
     if (pullDistance >= THRESHOLD && !isRefreshing) {
@@ -90,8 +110,9 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
         flex: '1 1 auto',
         minHeight: 0,
         overflow: 'auto',
-        overscrollBehavior: 'none',
+        overscrollBehavior: 'contain',
         WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y',
       }}
     >
       {showIndicator && (

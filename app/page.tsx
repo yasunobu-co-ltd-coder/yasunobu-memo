@@ -9,7 +9,7 @@ import UpdateNotice from './components/UpdateNotice';
 import { PullToRefresh } from './components/PullToRefresh';
 import { supabase } from '../lib/supabase';
 import { markAsRead, getReadsForMemos } from '../lib/reads';
-import { HelpCircle, LogOut, BookMarked, Bell, CalendarDays } from 'lucide-react';
+import { HelpCircle, LogOut, BookMarked, Bell, CalendarDays, AlertTriangle } from 'lucide-react';
 
 const APP_VERSION = 'v1.0.0';
 const COMMIT_SHA = process.env.NEXT_PUBLIC_COMMIT_SHA || 'dev';
@@ -138,11 +138,28 @@ export default function Page() {
   // 自分のUUID（フィルタ比較用）
   const meId = useMemo(() => users.find(u => u.name === me)?.id || '', [users, me]);
 
+  // Header ref (モーダル位置調整用)
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerBottom, setHeaderBottom] = useState(60);
+
+  const updateHeaderBottom = useCallback(() => {
+    if (headerRef.current) {
+      setHeaderBottom(headerRef.current.getBoundingClientRect().bottom);
+    }
+  }, []);
+
   // Voice Input
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+
+  // ヘッダー高さの計測（リサイズ時にも更新）
+  useEffect(() => {
+    updateHeaderBottom();
+    window.addEventListener('resize', updateHeaderBottom);
+    return () => window.removeEventListener('resize', updateHeaderBottom);
+  }, [updateHeaderBottom]);
 
   // Check PIN from sessionStorage on mount + Supabase接続プリウォーム
   useEffect(() => {
@@ -362,6 +379,11 @@ export default function Page() {
     const meUser = users.find(u => u.name === me);
     if (!meUser) return;
 
+    if (!clientName.trim()) {
+      const ok = window.confirm('顧客名が入力されていません。\n「相手不明」として登録しますか？');
+      if (!ok) return;
+    }
+
     setSubmitting(true);
 
     const newDeal = {
@@ -431,6 +453,7 @@ export default function Page() {
 
   // Start editing
   const startEdit = (deal: Deal) => {
+    updateHeaderBottom();
     setEditingDeal(deal);
     setEditClientName(deal.client_name);
     setEditMemo(deal.memo);
@@ -561,6 +584,7 @@ export default function Page() {
   }, [notifications, lastCheckedNotif]);
 
   const openNotif = async () => {
+    updateHeaderBottom();
     setShowNotif(true);
     await updateLastChecked(meId);
     setLastCheckedNotif(new Date().toISOString());
@@ -895,20 +919,20 @@ export default function Page() {
   return (
     <div className="wrap">
       {/* Header */}
-      <header className="topbar">
+      <header ref={headerRef} className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div className="brand">memo <span style={{ fontSize: '10px', opacity: 0.7 }}>v1.1</span></div>
           <button onClick={openNotif} className="notif-bell">
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
           </button>
-          <button onClick={() => { setShowCalendar(true); setSelectedDate(null); }} className="notif-bell">
+          <button onClick={() => { updateHeaderBottom(); setShowCalendar(true); setSelectedDate(null); }} className="notif-bell">
             <CalendarDays className="w-5 h-5" />
           </button>
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button onClick={() => setShowRulebook(true)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><BookMarked className="w-5 h-5" /></button>
-          <button onClick={() => setShowHelp(true)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><HelpCircle className="w-5 h-5" /></button>
+          <button onClick={() => { updateHeaderBottom(); setShowRulebook(true); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><BookMarked className="w-5 h-5" /></button>
+          <button onClick={() => { updateHeaderBottom(); setShowHelp(true); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><HelpCircle className="w-5 h-5" /></button>
           <span className="user-badge">{me}</span>
           <button onClick={logout} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><LogOut className="w-[16px] h-[16px]" /></button>
         </div>
@@ -1119,7 +1143,14 @@ export default function Page() {
                     </span>
                   </div>
 
-                  <div className="client-name">{d.client_name || '(相手不明)'}</div>
+                  <div className="client-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {d.client_name || '(相手不明)'}
+                    {!d.client_name && (
+                      <span title="顧客名が未登録です" style={{ color: '#f59e0b', display: 'inline-flex', flexShrink: 0 }}>
+                        <AlertTriangle className="w-4 h-4" />
+                      </span>
+                    )}
+                  </div>
 
                   <div className="indicators">
                     <span className={`tag ${d.importance === '高' ? 'tag-hi' : d.importance === '中' ? 'tag-mid' : 'tag-lo'}`}>重要:{d.importance}</span>
@@ -1155,7 +1186,7 @@ export default function Page() {
                               onClick={async () => { const u = await updateDeal(d.id, { status: '対応中' }); if (u) setDeals(deals.map(x => x.id === d.id ? u : x)); }}
                               style={{ background: '#fef3c7', color: '#d97706', border: 'none', padding: '6px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
                             >
-                              対応中
+                              対応する
                             </button>
                           )}
                           {normalizeStatus(d.status) === '対応中' && (
@@ -1200,8 +1231,8 @@ export default function Page() {
 
       {/* Edit Modal */}
       {editingDeal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-          <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto' }}>
+        <div onClick={cancelEdit} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: `${headerBottom + 8}px`, paddingLeft: '20px', paddingRight: '20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', maxHeight: `calc(100vh - ${headerBottom + 24}px)`, overflowY: 'auto' }}>
             <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>案件編集</h2>
 
             <div className="form-group">
@@ -1267,8 +1298,8 @@ export default function Page() {
 
       {/* Notification Drawer */}
       {showNotif && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px' }}>
-          <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto', marginTop: '40px' }}>
+        <div onClick={() => setShowNotif(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: `${headerBottom + 8}px`, paddingLeft: '20px', paddingRight: '20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', maxHeight: `calc(100vh - ${headerBottom + 24}px)`, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>通知</h2>
               <button onClick={() => setShowNotif(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
@@ -1281,7 +1312,10 @@ export default function Page() {
                   <div style={{ fontSize: '13px', color: '#2563eb', fontWeight: '600', marginBottom: '6px' }}>
                     {d.created_user?.name ?? '(不明)'} さんから依頼
                   </div>
-                  <div style={{ fontSize: '15px', fontWeight: '700', marginBottom: '4px' }}>{d.client_name || '(相手不明)'}</div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {d.client_name || '(相手不明)'}
+                    {!d.client_name && <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#f59e0b', flexShrink: 0 }} />}
+                  </div>
                   <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>{d.memo}</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '12px', color: d.due_date < todayYmd() ? '#ef4444' : '#64748b' }}>期限: {fmtDate(d.due_date)}</span>
@@ -1318,8 +1352,8 @@ export default function Page() {
         const selectedDeals = selectedDate ? (dueDateMap[selectedDate] || []) : [];
 
         return (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px' }}>
-            <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', maxHeight: '85vh', overflowY: 'auto', marginTop: '20px' }}>
+          <div onClick={() => setShowCalendar(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: `${headerBottom + 8}px`, paddingLeft: '20px', paddingRight: '20px' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', maxHeight: `calc(100vh - ${headerBottom + 24}px)`, overflowY: 'auto' }}>
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h2 style={{ fontSize: '18px', fontWeight: '700' }}>カレンダー</h2>
@@ -1395,7 +1429,10 @@ export default function Page() {
                   ) : (
                     selectedDeals.map(d => (
                       <div key={d.id} style={{ padding: '10px', background: '#f8fafc', borderRadius: '10px', marginBottom: '8px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ fontSize: '14px', fontWeight: '700', marginBottom: '2px' }}>{d.client_name || '(相手不明)'}</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {d.client_name || '(相手不明)'}
+                          {!d.client_name && <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#f59e0b', flexShrink: 0 }} />}
+                        </div>
                         <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>{d.memo}</div>
                         <div style={{ fontSize: '11px', color: '#94a3b8' }}>担当: {d.assignee_user?.name ?? '(不明)'}</div>
                       </div>
@@ -1412,8 +1449,8 @@ export default function Page() {
 
       {/* Help Modal */}
       {showHelp && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px' }}>
-          <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: '85vh', overflowY: 'auto', marginTop: '20px' }}>
+        <div onClick={() => setShowHelp(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: `${headerBottom + 8}px`, paddingLeft: '20px', paddingRight: '20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: `calc(100vh - ${headerBottom + 24}px)`, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ヘルプ</h2>
               <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
@@ -1429,7 +1466,7 @@ export default function Page() {
               { q: '音声入力がうまくいかない', a: 'マイクの使用をブラウザに許可してください。静かな環境で、はっきりと話すと認識精度が上がります。顧客名は過去の登録データから自動で補正されます。' },
               { q: 'ユーザーを切り替えたい', a: 'ヘッダー右上のログアウトアイコンを押すと担当者選択画面に戻ります。' },
               { q: 'アプリが固まった・表示がおかしい', a: '画面を下に引っ張って離すとデータが再読み込みされます（Pull to Refresh）。それでも直らない場合はブラウザを再起動してください。' },
-              { q: 'ステータスの使い分けは？', a: '「未着手」= まだ手をつけていない案件、「対応中」= 作業を始めた案件、「完了」= 対応が終わった案件。カードのボタンでワンタップで切り替えできます。' },
+              { q: 'ステータスの使い分けは？', a: '「未着手」= まだ手をつけていない案件、「対応中」= 作業を始めた案件、「完了」= 対応が終わった案件。カードの「対応する」ボタンで対応中に、「未着手に戻す」で元に戻せます。' },
               { q: 'ダッシュボードはどこ？', a: '担当者選択画面（ログイン画面）の一番上にある「ダッシュボード」ボタンから開けます。全体の状況と担当者別の件数が確認できます。' },
               { q: '担当者を並び替えたい', a: 'ユーザー選択画面で、名前の左にあるグリップ（⠿）を長押ししてドラッグすると並び替えられます。' },
               { q: 'スマホのホーム画面に追加したい', a: 'ブラウザの共有メニュー（iOS: Safari の共有ボタン → ホーム画面に追加 / Android: Chrome のメニュー → ホーム画面に追加）から追加できます。' },
@@ -1445,8 +1482,8 @@ export default function Page() {
 
       {/* Rulebook Modal (ルルブ) */}
       {showRulebook && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px' }}>
-          <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: '85vh', overflowY: 'auto', marginTop: '20px' }}>
+        <div onClick={() => setShowRulebook(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: `${headerBottom + 8}px`, paddingLeft: '20px', paddingRight: '20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: `calc(100vh - ${headerBottom + 24}px)`, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ルルブ</h2>
               <button onClick={() => setShowRulebook(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
