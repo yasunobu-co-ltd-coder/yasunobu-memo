@@ -487,6 +487,10 @@ export default function Page() {
 
   // Voice Recording Handler
   const startRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+      alert('お使いのブラウザは音声入力に対応していません。テキストで入力してください。');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
